@@ -18,19 +18,16 @@ import os
 est_time_zone = pytz.timezone('US/Eastern')
 
 # Connecting to database
-def conn_database():
-    conn = psycopg2.connect(
-        database= os.environ.get('GamedayBot_database'),
-        user= os.environ.get('GamedayBot_user'),
-        password= os.environ.get('GamedayBot_password'),
-        host = os.environ.get('GamedayBot_host'),
-        port = os.environ.get('GamedayBot_port'),
-        keepalives=1,
-        keepalives_idle=1
-        )
-    return conn
+conn = psycopg2.connect(
+    database= os.environ.get('GamedayBot_database'),
+    user= os.environ.get('GamedayBot_user'),
+    password= os.environ.get('GamedayBot_password'),
+    host = os.environ.get('GamedayBot_host'),
+    port = os.environ.get('GamedayBot_port'),
+    keepalives=1,
+    keepalives_idle=1
+    )
 
-conn = conn_database()
 cur = conn.cursor()
 
 nba_teams = {
@@ -282,16 +279,10 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
 
     #Query to see if user already in database or not
     id_query = "SELECT * FROM users WHERE user_id = %s"
-    try:
-        cur.execute(id_query, (user_id,))
-        #id_query_result = await db.execute(id_query, (user_id,))
-        id_query_result = cur.fetchone()
-    except Exception as e:
-        print(e.message)
-        conn = conn_database()
-        cur = conn.cursor()
-        cur.execute(id_query, (user_id,))
-        id_query_result = cur.fetchone()
+    cur.execute(id_query, (user_id,))
+    #id_query_result = await db.execute(id_query, (user_id,))
+    id_query_result = cur.fetchone()
+
     #If not in database add user with entered team and remind time
     if id_query_result is None:
         insert_statement = "INSERT INTO users (user_id, " + league_teams + ", " + league_remind_time + ") VALUES (%s, %s, %s)"
