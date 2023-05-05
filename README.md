@@ -1,2 +1,22 @@
-# GamedayBot
-Discord Bot used to check upcoming NBA, NFL, and NHL games as well as set reminders for user selected teams.
+# GamedayBot Discord Bot
+Invite to your Discord Server: https://discord.com/oauth2/authorize?client_id=1067222434845053008&permissions=2147543040&scope=bot
+
+# Examples
+
+# Description
+Discord Bot used to check upcoming NBA, NFL, and NHL games as well as set reminders for user selected teams. Bot has the following slash commands:
+- nba_nextgame: Returns a graphic of selected NBA team upcoming game.
+- nba_remindme: User can set a reminder for team(s) in the NBA.
+- nba_remove_reminders: User can remove reminders for any team in NBA.
+- nfl_nextgame: Returns a graphic of selected NFL team upcoming game.
+- nfl_remindme: User can set a reminder for team(s) in the NFL.
+- nfl_remove_reminders: User can remove reminders for any team in NFL.
+- nhl_nextgame: Returns a graphic of selected NHL team upcoming game.
+- nhl_remindme: User can set a reminder for team(s) in the NHL.
+- nhl_remove_reminders: User can remove reminders for any team in NHL.
+- remove_all_reminders: Remove reminders for any or all of the leagues at once.
+
+# Future Improvements:
+- Add cogs
+- Add more sports (currently supported: NBA, NHL, NFL)
+- More testing
