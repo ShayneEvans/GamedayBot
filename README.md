@@ -4,8 +4,7 @@ Invite to your Discord Server: https://discord.com/oauth2/authorize?client_id=10
 # Examples
 ![nba_nextgame](https://user-images.githubusercontent.com/70344759/236567369-ce1850ad-434d-4d98-92a5-1278d1470b4d.PNG)
 ![nba reminder](https://user-images.githubusercontent.com/70344759/236567374-1b5d848a-36cf-449c-86cc-0db6f66eb2bb.PNG)
-
-
+![nhl set reminders](https://user-images.githubusercontent.com/70344759/236569047-8770bab9-ef1a-4861-949f-fd0cebb73693.PNG)
 
 # Description
 Discord Bot used to check upcoming NBA, NFL, and NHL games as well as set reminders for user selected teams. Bot has the following slash commands:
@@ -21,6 +20,7 @@ Discord Bot used to check upcoming NBA, NFL, and NHL games as well as set remind
 - remove_all_reminders: Remove reminders for any or all of the leagues at once.
 
 # Future Improvements:
+- Add better database failure recovery
 - Add set_timezone command for user
 - Make reminder more clear
 - Add cogs
