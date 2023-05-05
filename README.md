@@ -1,5 +1,6 @@
 # GamedayBot Discord Bot
-Invite to your Discord Server: https://discord.com/oauth2/authorize?client_id=1067222434845053008&permissions=2147543040&scope=bot
+Invite to your Discord Server: 
+https://discord.com/oauth2/authorize?client_id=1067222434845053008&permissions=2147543040&scope=bot
 
 # Examples
 ![nba_nextgame](https://user-images.githubusercontent.com/70344759/236567369-ce1850ad-434d-4d98-92a5-1278d1470b4d.PNG)
