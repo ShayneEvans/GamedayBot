@@ -489,11 +489,11 @@ def get_team_NBA_matches(team_id):
 def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
     reminder_message_split_up = reminder_message.split("starts")
     reminder_message_split_up[1] = "".join("starts" + reminder_message_split_up[1])
-    away = Image.open(league +"/logos/" + away_team_id + '.png')
+    away = Image.open(league +"/" + away_team_id + '.png')
     away = away.convert("RGBA")
-    home = Image.open(league +"/logos/" + home_team_id + '.png')
+    home = Image.open(league +"/" + home_team_id + '.png')
     home = home.convert("RGBA")
-    game_graphic = Image.open(league +"/logos/GameTemplate.png")
+    game_graphic = Image.open(league +"/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
     game_graphic.paste(away, (0, 0), away)
     game_graphic.paste(home, (400, 0), home)
@@ -517,11 +517,11 @@ def nba_upcoming_game(nba_games_list):
                 upcoming_game_idx += 1
             break
 
-    away = Image.open("NBA/logos/" + nba_games_list[upcoming_game_idx][1] + '.png')
+    away = Image.open("NBA/" + nba_games_list[upcoming_game_idx][1] + '.png')
     away = away.convert("RGBA")
-    home = Image.open("NBA/logos/" + nba_games_list[upcoming_game_idx][2] + '.png')
+    home = Image.open("NBA/" + nba_games_list[upcoming_game_idx][2] + '.png')
     home = home.convert("RGBA")
-    game_graphic = Image.open("NBA/logos/GameTemplate.png")
+    game_graphic = Image.open("NBA/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
     game_graphic.paste(away, (0, 0), away)
     game_graphic.paste(home, (400, 0), home)
@@ -574,11 +574,11 @@ def nfl_upcoming_game(nfl_games_list):
                 upcoming_game_idx = i
             break
 
-    away = Image.open("NFL/logos/" + nfl_games_list[upcoming_game_idx][1] + '.png')
+    away = Image.open("NFL/" + nfl_games_list[upcoming_game_idx][1] + '.png')
     away = away.convert("RGBA")
-    home = Image.open("NFL/logos/" + nfl_games_list[upcoming_game_idx][2] + '.png')
+    home = Image.open("NFL/" + nfl_games_list[upcoming_game_idx][2] + '.png')
     home = home.convert("RGBA")
-    game_graphic = Image.open("NFL/logos/GameTemplate.png")
+    game_graphic = Image.open("NFL/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
     game_graphic.paste(away, (0, 0), away)
     game_graphic.paste(home, (400, 0), home)
@@ -619,11 +619,11 @@ def nhl_upcoming_game(nhl_games_list):
                 upcoming_game_idx = i
             break
 
-    away = Image.open("NHL/logos/" + str(nhl_games_list[upcoming_game_idx][1]) + '.png')
+    away = Image.open("NHL/" + str(nhl_games_list[upcoming_game_idx][1]) + '.png')
     away = away.convert("RGBA")
-    home = Image.open("NHL/logos/" + str(nhl_games_list[upcoming_game_idx][2]) + '.png')
+    home = Image.open("NHL/" + str(nhl_games_list[upcoming_game_idx][2]) + '.png')
     home = home.convert("RGBA")
-    game_graphic = Image.open("NHL/logos/GameTemplate.png")
+    game_graphic = Image.open("NHL/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
     game_graphic.paste(away, (0, 0), away)
     game_graphic.paste(home, (400, 0), home)
@@ -867,4 +867,6 @@ def run_discord_bot():
             for remind_time_in_mins, remind_time in reminder_times.items() if current.lower() in remind_time.lower()
         ]
     ##########################   NHL RELATED COMMANDS   ###############################
+    #loop = asyncio.get_event_loop()
+    #my_task = loop.create_task(send_reminders())
     bot.run(TOKEN)
