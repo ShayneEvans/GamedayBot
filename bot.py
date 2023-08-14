@@ -305,7 +305,7 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
         #Getting the VARCHAR of teams that the user follows, has this format string: TEAM1,TEAM2,TEAM3,....
         updated_reminder_teams_string = id_query_result[teams_query_idx]
         #If team user wants to follow is not in the string then add it
-        if team_id not in updated_reminder_teams_string:
+        if team_id not in updated_reminder_teams_string.split(","):
             updated_reminder_teams_string = f'{updated_reminder_teams_string}{team_id},'
 
         #If both entered team and remind time are different from ones on database update them
