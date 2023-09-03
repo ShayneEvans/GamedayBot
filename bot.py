@@ -14,6 +14,7 @@ import typing
 import psycopg2
 import pytz
 import os
+from json.decoder import JSONDecodeError
 
 est_time_zone = pytz.timezone('US/Eastern')
 
@@ -449,10 +450,15 @@ def remove_all_reminders_fn(user_id, league):
         return "You have no reminders for any leagues."
 
 def get_team_NBA_matches(team_id):
-    currentNBAYear = date.today().year - 1
+    currentNBAYear = date.today().year
     #Endpoint obtained from https://github.com/rlabausa/nba-schedule-data
-    NBA_json_data = requests.get("https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/" + str(currentNBAYear) + "/league/00_full_schedule.json")
-    NBA_json = json.loads(NBA_json_data.text)
+    #Try except block used to get correct year. When NBA season goes to next year will still be using the previous year, this is how the URL works
+    try:
+        NBA_json_data = requests.get("https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/" + str(currentNBAYear) + "/league/00_full_schedule.json")
+        NBA_json = json.loads(NBA_json_data.text)
+    except JSONDecodeError as e:
+        NBA_json_data = requests.get("https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/" + str(currentNBAYear-1) + "/league/00_full_schedule.json")
+        NBA_json = json.loads(NBA_json_data.text)
     nba_games_list = []
 
        # Getting all team games that have yet to be played with date
