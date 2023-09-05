@@ -160,6 +160,10 @@ def convert_date(date):
     readable_date = datetime_est.strftime("%m-%d-%Y") + datetime_est.strftime(" %I:%M") + setting
     return readable_date
 
+def sort_dates(date_string):
+    date_str = date_string[0].replace(' EST', '')  # Remove 'EST' before parsing
+    return datetime.strptime(date_str, '%m-%d-%Y %I:%M %p')
+
 #Gets the reminder time in format suitable for database (string Y-m-d H:M:S)
 def get_game_reminder_time(game_start_time, remind_time_in_mins):
     game_start_time_dt = game_start_time - timedelta(minutes = remind_time_in_mins)
@@ -481,7 +485,8 @@ def get_team_NBA_matches(team_id):
                         game_start_time = convert_date(game_start_time)
                     nba_games_list.append((game_start_time, visiting_team, home_team))
 
-    return nba_games_list
+    sorted_nba_gamest_list = sorted(nba_games_list, key=sort_dates)
+    return sorted_nba_games_list
 
 def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
     reminder_message_split_up = reminder_message.split("starts")
