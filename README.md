@@ -26,3 +26,21 @@ Discord Bot used to check upcoming NBA, NFL, and NHL games as well as set remind
 - Add cogs
 - Add more sports (currently supported: NBA, NHL, NFL)
 - More testing
+
+## Technologies Used
+
+### Backend
+- **Python**: Version 3.11
+- **psycopg2~=2.9.5**: A PostgreSQL adapter for Python.
+- **PostgreSQL**: A powerful open-source relational database system.
+- **cron**: Used to schedule python scripts to obtain upcoming NBA, NFL, and NHL games and set reminders in the database.
+
+### Hosting
+- **Raspberry Pi 3**: Used for hosting the application.
+
+### Libraries
+- **discord~=2.1.0**: Used for Discord integration of slash commands and setting and receiving reminder messages.
+- **DateTime~=5.0**: Used to format dates from the different APIs into one 
+- **Pillow~=9.4.0**: Used to create reminder graphics that are messaged to user.
+- **python-dateutil~=2.8.2**: Used to parse and convert all dates to a specific format.
+- **requests~=2.28.2**: Used for making HTTP requests to fetch data from NBA, NFL, and NHL APIs.
