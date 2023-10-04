@@ -12,11 +12,8 @@ from dateutil import parser
 from io import BytesIO
 import typing
 import psycopg2
-import pytz
 import os
 from json.decoder import JSONDecodeError
-
-est_time_zone = pytz.timezone('US/Eastern')
 
 # Connecting to database
 conn = psycopg2.connect(
