@@ -141,7 +141,8 @@ reminder_times = {
     360: 'Remind me 6 hours before the game starts',
     720: 'Remind me 12 hours before the game starts',
     1440: 'Remind me a day before the game starts'}
-        
+
+#Used to convert dates to a uniform standard across all leagues
 def convert_date(date):
     string_to_datetime = parser.parse(date)
 
@@ -157,6 +158,7 @@ def convert_date(date):
     readable_date = datetime_est.strftime("%m-%d-%Y") + datetime_est.strftime(" %I:%M") + setting
     return readable_date
 
+#Used to sort nba game dates
 def sort_dates(date_string):
     date_str = date_string[0].replace(' EST', '')  # Remove 'EST' before parsing
     return datetime.strptime(date_str, '%m-%d-%Y %I:%M %p')
@@ -166,9 +168,6 @@ def get_game_reminder_time(game_start_time, remind_time_in_mins):
     game_start_time_dt = game_start_time - timedelta(minutes = remind_time_in_mins)
     game_start_time_string = game_start_time_dt.strftime('%Y-%m-%d %H:%M:%S')
     return game_start_time_dt, game_start_time_string
-
-#def daily_get_upcoming_reminder_times():
-
 
 #Gets the upcoming games and sets reminders in next 24 hours for a user when they choose to start following a team. Also updates reminder times in same league if following multiple teams in league
 def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id):
@@ -345,7 +344,7 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
             set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
             return f"UPDATE not made, you already receive game reminders for the {team_name} {remind_string[10:]}."
 
-#Function used to remove reminders for a user
+#Function used to remove reminders for a user for a specific team
 def remove_reminders(user_id, team_id, league):
     league_teams = league + "_teams"
     team_name = ""
@@ -389,8 +388,8 @@ def remove_reminders(user_id, team_id, league):
     elif id_query_result is None:
         return f"You do not have any reminders set for any leagues."
 
+#Function used for the /remove_all_reminders slash command. Removes all reminders for a user
 def remove_all_reminders_fn(user_id, league):
-
     # Query to see if user already in database or not
     id_query = "SELECT * FROM users WHERE user_id = %s"
     cur.execute(id_query, (user_id,))
@@ -450,6 +449,7 @@ def remove_all_reminders_fn(user_id, league):
     else:
         return "You have no reminders for any leagues."
 
+#Gets a list of all matches for a team
 def get_team_NBA_matches(team_id):
     currentNBAYear = date.today().year
     #Endpoint obtained from https://github.com/rlabausa/nba-schedule-data
@@ -462,29 +462,34 @@ def get_team_NBA_matches(team_id):
         NBA_json = json.loads(NBA_json_data.text)
     nba_games_list = []
 
-       # Getting all team games that have yet to be played with date
+    #Getting all team games that have yet to be played with date
     for i in range(len(NBA_json['lscd'])):
         for j in range(len(NBA_json['lscd'][i]['mscd']['g'])):
-            # Date when the game takes place
+            #Date when the game takes place
             game_date = NBA_json['lscd'][i]['mscd']['g'][j]['gdte']
-            # Start time for the game if it has not occurred, Final otherwise, default EST
+            #Start time for the game if it has not occurred, Final otherwise, default EST
             game_status = NBA_json['lscd'][i]['mscd']['g'][j]['stt']
-            # Visting team 3 letter abbreviation
+            #Visting team 3 letter abbreviation
             visiting_team = NBA_json['lscd'][i]['mscd']['g'][j]['v']['ta']
-            # Home team 3 letter abbreviation
+            #Home team 3 letter abbreviation
             home_team = NBA_json['lscd'][i]['mscd']['g'][j]['h']['ta']
 
-            # If game hasn't been played, append it to list
+            #If game hasn't been played, append it to list
             if game_status[-2:] == 'ET' or game_status == "TBD":
                 if home_team == team_id or visiting_team == team_id:
                     game_start_time = game_date + " " + game_status
                     if game_status != "TBD":
                         game_start_time = convert_date(game_start_time)
-                    nba_games_list.append((game_start_time, visiting_team, home_team))
-
+                    
+                    #Checking to make sure both are real NBA teams, avoid issue of EU pre season games.
+                    if visiting_team in nba_teams and home_team in nba_teams:
+                        nba_games_list.append((game_start_time, visiting_team, home_team))
+    
+    #Sorting nba games by date with function sort_dates
     sorted_nba_gamest_list = sorted(nba_games_list, key=sort_dates)
     return sorted_nba_games_list
 
+#Used when sending user reminders, since it could be a reminder for any of the 3 leagues this is handeled dynamically with league name as a parameter
 def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
     reminder_message_split_up = reminder_message.split("starts")
     reminder_message_split_up[1] = "".join("starts" + reminder_message_split_up[1])
@@ -504,6 +509,7 @@ def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
     game_image.text(((700-w)/2, (350-h)/2), reminder_message_split_up[1], font=font)
     return game_graphic
 
+#Used with /nba_nextgame slash command to return the next game for an NBA team.
 def nba_upcoming_game(nba_games_list):
     upcoming_game_idx = 0
     for i in range(0, len(nba_games_list)):
@@ -558,7 +564,8 @@ def get_team_NFL_matches(team_id):
             visiting_team = list(nfl_teams.keys())[list(nfl_teams.values()).index(game[0])]
             #Home team ID obtained by using the team name
             home_team = list(nfl_teams.keys())[list(nfl_teams.values()).index(game[1])]
-            nfl_games_list.append((game_start_time, visiting_team, home_team))
+            if visiting_team in nfl_teams and home_team in nfl_teams:
+                nfl_games_list.append((game_start_time, visiting_team, home_team))
 
     return nfl_games_list
 
@@ -604,7 +611,8 @@ def get_team_NHL_matches(team_id , startDate, endDate):
             game_date = NHL_json['dates'][i]['games'][0]['gameDate']
             visiting_team = NHL_json['dates'][i]['games'][0]['teams']['away']['team']['id']
             home_team = NHL_json['dates'][i]['games'][0]['teams']['home']['team']['id']
-            upcoming_match_list.append((convert_date(game_date), visiting_team, home_team))
+            if str(visiting_team) in nhl_teams and str(home_team) in nhl_teams:
+                upcoming_match_list.append((convert_date(game_date), str(visiting_team), str(home_team)))
 
     return upcoming_match_list
 
