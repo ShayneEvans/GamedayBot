@@ -509,33 +509,72 @@ def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
     game_image.text(((700-w)/2, (350-h)/2), reminder_message_split_up[1], font=font)
     return game_graphic
 
-#Used with /nba_nextgame slash command to return the next game for an NBA team.
-def nba_upcoming_game(nba_games_list):
+#Used to get the days, hours, minutes, and seconds until the start of the next game. This will be displayed at the top of all nextgame PIL images
+def time_until_game(game_start_time):
+    current_time = datetime.now().replace(microsecond=0)
+    game_start_time_dt = datetime.strptime(game_start_time[:-4], "%m-%d-%Y %I:%M %p")
+    #Difference between current time and the time the game starts
+    delta = game_start_time_dt - current_time
+
+    days = delta.days
+    seconds = delta.seconds
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+
+    #Exclude days if the game is happening today
+    if days > 0:
+        time_until_game_starts_msg = f'{days}d {hours}h {minutes}m {seconds}s'
+    else:
+        time_until_game_starts_msg = f'{hours}h {minutes}m {seconds}s'
+
+    return time_until_game_starts_msg
+
+#Used to display the next game of the team
+def user_nextgame(league_games_list, league):
     upcoming_game_idx = 0
-    for i in range(0, len(nba_games_list)):
-        if nba_games_list[i][0][-3:] == "TBD":
-            break
-        start_time = datetime.strptime(nba_games_list[i][0][:-4], "%m-%d-%Y %I:%M %p")
+    for i in range(0, len(league_games_list)):
+        if league == 'NBA':
+            if league_games_list[i][0][-3:] == "TBD":
+                break
+        else:
+            start_time = datetime.strptime(league_games_list[i][0][:-4], "%m-%d-%Y %I:%M %p")
 
-        if(datetime.now() >= start_time):
-            if(upcoming_game_idx + 1 != len(nba_games_list)):
-                upcoming_game_idx += 1
-            break
+            if datetime.now() >= start_time:
+                if upcoming_game_idx +1 != len(league_games_list):
+                    upcoming_game_idx += 1
+                break
 
-    away = Image.open("NBA/" + nba_games_list[upcoming_game_idx][1] + '.png')
+    away = Image.open(f"{league}/{league_games_list[upcoming_game_idx][1]}.png")
     away = away.convert("RGBA")
-    home = Image.open("NBA/" + nba_games_list[upcoming_game_idx][2] + '.png')
+    home = Image.open(f"{league}/{league_games_list[upcoming_game_idx][2]}.png")
     home = home.convert("RGBA")
-    game_graphic = Image.open("NBA/GameTemplate.png")
+    game_graphic = Image.open(f"{league}/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
     game_graphic.paste(away, (0, 0), away)
     game_graphic.paste(home, (400, 0), home)
     game_image = ImageDraw.Draw(game_graphic)
-    #font = ImageFont.truetype("arial.ttf", 50)
-    #game_image.text((100, 290), nba_games_list[0][0], font=font)
     font = ImageFont.truetype("arial.ttf", 50)
-    _, _, w, h = game_image.textbbox((0, -290), nba_games_list[upcoming_game_idx][0], font=font)
-    game_image.text(((700-w)/2, (350-h)/2), nba_games_list[upcoming_game_idx][0], font=font)
+    font_time_until_game = ImageFont.truetype("arial.ttf", 24)
+    #Text box for the start time in EST
+    _, _, w, h = game_image.textbbox((0, -290), league_games_list[upcoming_game_idx][0], font=font)
+    game_image.text(((700-w)/2, (350-h)/2), league_games_list[upcoming_game_idx][0], font=font)
+
+    #Getting the time until game start time msg in format: {days}d {hours}h {minutes}m {seconds}m
+    time_until_game_msg =  time_until_game(league_games_list[upcoming_game_idx][0])
+
+    #Creating 2 seperate text boxes for "Game Starts in:" and the time until game message so they can be properly placed at top of PIL image and centered
+    _, _, w2, h2 = game_image.textbbox((0, 320), "Game Starts in:", font = font_time_until_game)
+    _,_, w3, h3 = game_image.textbbox((0, 290 + h2), time_until_game_msg, font = font_time_until_game)
+    x2 = (700 - w2) / 2
+    y2 = (350 - h2) / 2
+    x3 = (700 - w3) / 2
+    y3 = y2 + 25
+
+    #Adding 'Game Starts in' text
+    game_image.text((x2, y2), "Game Starts in:", font = font_time_until_game)
+
+    #Adding the time until the game starts text
+    game_image.text((x3, y3), time_until_game_msg, font = font_time_until_game)
 
     return game_graphic
 
@@ -569,32 +608,6 @@ def get_team_NFL_matches(team_id):
 
     return nfl_games_list
 
-def nfl_upcoming_game(nfl_games_list):
-    #Finding the upcoming game then breaking from loop and creating graphic of it
-    upcoming_game_idx = 0
-    for i in range(0, len(nfl_games_list)):
-        start_time = datetime.strptime(nfl_games_list[i][0][:-4], "%m-%d-%Y %I:%M %p")
-
-        if(datetime.now() >= start_time):
-            if(upcoming_game_idx + 1 != len(nfl_games_list)):
-                upcoming_game_idx = i
-            break
-
-    away = Image.open("NFL/" + nfl_games_list[upcoming_game_idx][1] + '.png')
-    away = away.convert("RGBA")
-    home = Image.open("NFL/" + nfl_games_list[upcoming_game_idx][2] + '.png')
-    home = home.convert("RGBA")
-    game_graphic = Image.open("NFL/GameTemplate.png")
-    game_graphic = game_graphic.convert("RGBA")
-    game_graphic.paste(away, (0, 0), away)
-    game_graphic.paste(home, (400, 0), home)
-    game_image = ImageDraw.Draw(game_graphic)
-    font = ImageFont.truetype("arial.ttf", 50)
-    _, _, w, h = game_image.textbbox((0, -290), nfl_games_list[upcoming_game_idx][0], font=font)
-    game_image.text(((700-w)/2, (350-h)/2), nfl_games_list[upcoming_game_idx][0], font=font)
-
-    return game_graphic
-
 def get_team_NHL_matches(team_id , startDate, endDate):
     #Variable for upcoming NHL matches
     upcoming_match_list = []
@@ -616,31 +629,7 @@ def get_team_NHL_matches(team_id , startDate, endDate):
 
     return upcoming_match_list
 
-def nhl_upcoming_game(nhl_games_list):
-    upcoming_game_idx = 0
-    for i in range(0, len(nhl_games_list)):
-        start_time = datetime.strptime(nhl_games_list[i][0][:-4], "%m-%d-%Y %I:%M %p")
-
-        if(datetime.now() >= start_time):
-            if(upcoming_game_idx + 1 != len(nhl_games_list)):
-                upcoming_game_idx = i
-            break
-
-    away = Image.open("NHL/" + str(nhl_games_list[upcoming_game_idx][1]) + '.png')
-    away = away.convert("RGBA")
-    home = Image.open("NHL/" + str(nhl_games_list[upcoming_game_idx][2]) + '.png')
-    home = home.convert("RGBA")
-    game_graphic = Image.open("NHL/GameTemplate.png")
-    game_graphic = game_graphic.convert("RGBA")
-    game_graphic.paste(away, (0, 0), away)
-    game_graphic.paste(home, (400, 0), home)
-    game_image = ImageDraw.Draw(game_graphic)
-    font = ImageFont.truetype("arial.ttf", 50)
-    _, _, w, h = game_image.textbbox((0, -290), nhl_games_list[upcoming_game_idx][0], font=font)
-    game_image.text(((700-w)/2, (350-h)/2), nhl_games_list[upcoming_game_idx][0], font=font)
-
-    return game_graphic
-
+#Gets all reminders from database
 def get_reminders():
     cur.execute("SELECT * FROM reminders")
     reminders = cur.fetchall()
@@ -729,7 +718,7 @@ def run_discord_bot():
             nba_games_list = get_team_NBA_matches(nba_team)
             bytes_io_obj = BytesIO()
             if len(nba_games_list) > 0:
-                nba_upcoming_game(nba_games_list).save(bytes_io_obj, 'PNG')
+                user_nextgame(nba_games_list, "NBA").save(bytes_io_obj, 'PNG')
                 bytes_io_obj.seek(0)
                 await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename='image.png'))
             else:
@@ -781,7 +770,7 @@ def run_discord_bot():
             nfl_games_list = get_team_NFL_matches(nfl_team)
             bytes_io_obj = BytesIO()
             if len(nfl_games_list) > 0:
-                nfl_upcoming_game(nfl_games_list).save(bytes_io_obj, 'PNG')
+                user_nextgame(nfl_games_list, "NFL").save(bytes_io_obj, 'PNG')
                 bytes_io_obj.seek(0)
                 await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename='image.png'))
             else:
@@ -834,7 +823,7 @@ def run_discord_bot():
             bytes_io_obj = BytesIO()
 
             if len(nhl_games_list) > 0:
-                nhl_upcoming_game(nhl_games_list).save(bytes_io_obj, 'PNG')
+                user_nextgame(nhl_games_list, "NHL").save(bytes_io_obj, 'PNG')
                 bytes_io_obj.seek(0)
                 await interaction.response.send_message(file=discord.File(fp=bytes_io_obj, filename='image.png'))
             else:
@@ -874,6 +863,5 @@ def run_discord_bot():
             for remind_time_in_mins, remind_time in reminder_times.items() if current.lower() in remind_time.lower()
         ]
     ##########################   NHL RELATED COMMANDS   ###############################
-    #loop = asyncio.get_event_loop()
-    #my_task = loop.create_task(send_reminders())
+    
     bot.run(TOKEN)
