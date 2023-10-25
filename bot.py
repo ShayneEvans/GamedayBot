@@ -14,6 +14,7 @@ import typing
 import psycopg2
 import os
 from json.decoder import JSONDecodeError
+import pytz
 
 # Connecting to database
 conn = psycopg2.connect(
@@ -141,6 +142,8 @@ reminder_times = {
     360: 'Remind me 6 hours before the game starts',
     720: 'Remind me 12 hours before the game starts',
     1440: 'Remind me a day before the game starts'}
+
+est_time_zone = pytz.timezone('US/Eastern')
 
 #Used to convert dates to a uniform standard across all leagues
 def convert_date(date):
@@ -486,7 +489,7 @@ def get_team_NBA_matches(team_id):
                         nba_games_list.append((game_start_time, visiting_team, home_team))
     
     #Sorting nba games by date with function sort_dates
-    sorted_nba_gamest_list = sorted(nba_games_list, key=sort_dates)
+    sorted_nba_games_list = sorted(nba_games_list, key=sort_dates)
     return sorted_nba_games_list
 
 #Used when sending user reminders, since it could be a reminder for any of the 3 leagues this is handeled dynamically with league name as a parameter
