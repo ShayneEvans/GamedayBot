@@ -16,6 +16,22 @@ import os
 from json.decoder import JSONDecodeError
 import pytz
 
+
+#def get_cs2_teams_dict(self):
+#    cs2_teams = {}
+#
+#    csv_file = 'teams.csv'
+#    with open(csv_file, newline='') as csvfile:
+#        csvreader = csv.reader(csvfile)
+#
+#        for row in csvreader:
+#            if len(row) >= 2:
+#                key = row[0]
+#                value = row[1]
+#                cs2_teams[key] = value
+
+#    return cs2_teams
+
 # Connecting to database
 conn = psycopg2.connect(
     database= os.environ.get('GamedayBot_database'),
@@ -129,6 +145,27 @@ nhl_teams = {
     '54': 'Vegas Golden Knights',
     '55': 'Seattle Kraken'}
 
+
+#Class used to obtain cs2 teams
+class cs2Teams:
+    def __init__(self):
+        self.teams = {}
+
+    # Creates a dictionary from team_id and team_name columns from cs2_teams in database
+    def get_cs2_teams_dict(self):
+        select_statement = "SELECT team_id, team_name FROM cs2_teams"
+        cur.execute(select_statement)
+        result = cur.fetchall()
+        cs2_teams = dict(result)
+
+        return cs2_teams
+
+    @tasks.loop(minutes=1)
+    async def update_cs2_teams_dict(self):
+        self.teams = self.get_cs2_teams_dict()
+
+cs2_data = cs2Teams()
+
 reminder_times = {
     5: 'Remind me 5 minutes before the game starts',
     10: 'Remind me 10 minutes before the game starts',
@@ -182,7 +219,10 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
 
     #Getting all upcoming games for each league
     league_games = league +'_games'
-    upcoming_games = "SELECT * FROM " + league_games + " WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN " + str(user_followed_teams_tuple) + " OR home_team IN " + str(user_followed_teams_tuple) + ")"
+    if league_games != 'cs2_games':
+        upcoming_games = "SELECT * FROM " + league_games + " WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN " + str(user_followed_teams_tuple) + " OR home_team IN " + str(user_followed_teams_tuple) + ")"
+    else:
+        upcoming_games = "SELECT * FROM " + league_games + " WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (team_one IN " + str(user_followed_teams_tuple) + " OR team_two IN " + str(user_followed_teams_tuple) + ")"
     cur.execute(upcoming_games)
     upcoming_games_query_result = cur.fetchall()
 
@@ -194,7 +234,7 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
     
     current_date = datetime.strptime(datetime.now().strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
 
-    #If user follows nba teams
+    #If user follows teams in the league
     if followed_league_teams is not None:
         for game in upcoming_games_query_result:
             #If home team or visiting team in followed league teams insert a reminder for that game, duplicate games are avoided with a check for the count
@@ -206,10 +246,13 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
                     values = (user[0][0], game_remind_time_string, game[1], game[2], league.upper(), user[0][remind_times_query_idx])
                     #Checks if a reminder has been set for this upcoming game, an insert will not take place if true
                     check_if_exists = "SELECT count(*) FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND remind_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
-                    check_if_exists_results = cur.execute(check_if_exists, (user[0][0], game[1], game[2],))
+                    cur.execute(check_if_exists, (user[0][0], game[1], game[2],))
+                    #If this reminder doesn't exist
                     if cur.fetchone()[0] == 0:
+                        #Check if game was inputted with swapped teams
                         check_if_exists_swapped = "SELECT count(*) FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND remind_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
-                        check_if_exists_swapped_results = cur.execute(check_if_exists_swapped, (user[0][0], game[2], game[1]))
+                        cur.execute(check_if_exists_swapped, (user[0][0], game[2], game[1]))
+                        #If this reminder doesn't exist, it is a new reminder
                         if cur.fetchone()[0] == 0:
                             cur.execute(insert_statement, values)
                             conn.commit()
@@ -229,7 +272,10 @@ def update_reminder_time_on_reminders_table(user_id, new_time, league):
 
     for reminder in reminders_query_result:
         #Gets the new reminder time for the game by subtracting the old reminder time from the new reminder time and subtracting that from the date time reminder
-        game_start_time_query = "SELECT start_time FROM " + league.lower() + "_games WHERE visiting_team = %s AND home_team = %s AND start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
+        if league != 'CS2':
+            game_start_time_query = "SELECT start_time FROM " + league.lower() + "_games WHERE visiting_team = %s AND home_team = %s AND start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
+        else:
+            game_start_time_query = "SELECT start_time FROM " + league.lower() + "_games WHERE team_one = %s AND team_two = %s AND start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
         values = (reminder[2], reminder[3],)
         cur.execute(game_start_time_query, values)
         game_start_time = cur.fetchone()
@@ -280,6 +326,11 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
         remind_string = reminder_times[remind_time]
         teams_query_idx = 5
         remind_times_query_idx = 6
+    elif league == 'cs2':
+        team_name = cs2_data.teams[team_id]
+        remind_string = reminder_times[remind_time]
+        teams_query_idx = 7
+        remind_times_query_idx = 8
 
     #Query to see if user already in database or not
     id_query = "SELECT * FROM users WHERE user_id = %s"
@@ -362,6 +413,9 @@ def remove_reminders(user_id, team_id, league):
     elif league == 'nhl':
         team_name = nhl_teams[team_id]
         teams_query_idx = 5
+    elif league == 'cs2':
+        team_name = cs2_data.teams[team_id]
+        teams_query_idx = 7
 
     #Query to see if user already in database or not
     id_query = "SELECT * FROM users WHERE user_id = %s"
@@ -380,7 +434,10 @@ def remove_reminders(user_id, team_id, league):
         values = (user_id, team_id, team_id,)
         cur.execute(delete_statement, values)
         conn.commit()
-        return f"Reminders removed for the {team_name}"
+        if league != 'cs2':
+            return f"Reminders removed for the {team_name}"
+        else:
+            return f"Reminders removed for {team_name}"
     #User has no reminders for the selected team
     elif team_id not in id_query_result[teams_query_idx]:
         return f"You do not have any reminders set for the {team_name}"
@@ -439,6 +496,21 @@ def remove_all_reminders_fn(user_id, league):
     # No reminders have been set for this league, return error message
     elif league == 'NHL' and id_query_result[5] is None:
         return "You have no reminders set for any NHL teams."
+    # Valid reminders have been set for this league and should be removed
+    elif league == 'cs2' and id_query_result[5] is not None:
+        update_statement = "UPDATE users SET cs2_teams = %s, CS2_remind_time = %s WHERE user_id = %s"
+        values = (None, None, user_id)
+        cur.execute(update_statement, values)
+        conn.commit()
+        delete_statement = "DELETE FROM reminders WHERE user_id = %s and league = %s"
+        values = (user_id, league,)
+        cur.execute(delete_statement, values)
+        conn.commit()
+        return f"All CS2 reminders have been successfully removed"
+    # No reminders have been set for this league, return error message
+    elif league == 'cs2' and id_query_result[5] is None:
+        return "You have no reminders set for any CS2 teams."
+
     elif league == 'ALL' and not all(followed_teams_list is None for followed_teams_list in (id_query_result[1], id_query_result[3], id_query_result[5])):
         update_statement = "UPDATE users SET nba_teams = %s, nba_remind_time = %s, nfl_teams = %s, nfl_remind_time = %s, nhl_teams = %s, nhl_remind_time = %s WHERE user_id = %s"
         values = (None, None, None, None, None, None, user_id)
@@ -494,6 +566,9 @@ def get_team_NBA_matches(team_id):
 
 #Used when sending user reminders, since it could be a reminder for any of the 3 leagues this is handeled dynamically with league name as a parameter
 def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
+    if league == 'CS2':
+        if away_team_id == 'None':
+            away_team_id = 'NO_LOGO'
     reminder_message_split_up = reminder_message.split("starts")
     reminder_message_split_up[1] = "".join("starts" + reminder_message_split_up[1])
     away = Image.open(league +"/" + away_team_id + '.png')
@@ -502,14 +577,14 @@ def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
     home = home.convert("RGBA")
     game_graphic = Image.open(league +"/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
-    game_graphic.paste(away, (0, 0), away)
-    game_graphic.paste(home, (400, 0), home)
+    game_graphic.paste(away, (20, 40), away)
+    game_graphic.paste(home, (490, 40), home)
     game_image = ImageDraw.Draw(game_graphic)
     font = ImageFont.truetype("arial.ttf", 25)
-    _, _, w, h = game_image.textbbox((0, -270), reminder_message_split_up[0], font=font)
-    game_image.text(((700-w)/2, (350-h)/2), reminder_message_split_up[0], font=font)
-    _, _, w, h = game_image.textbbox((0, -315), reminder_message_split_up[1], font=font)
-    game_image.text(((700-w)/2, (350-h)/2), reminder_message_split_up[1], font=font)
+    _, _, w, h = game_image.textbbox((0, -360), reminder_message_split_up[0], font=font)
+    game_image.text(((800-w)/2, (350-h)/2), reminder_message_split_up[0], font=font)
+    _, _, w, h = game_image.textbbox((0, -415), reminder_message_split_up[1], font=font)
+    game_image.text(((800-w)/2, (350-h)/2), reminder_message_split_up[1], font=font)
     return game_graphic
 
 #Used to get the days, hours, minutes, and seconds until the start of the next game. This will be displayed at the top of all nextgame PIL images
@@ -532,6 +607,49 @@ def time_until_game(game_start_time):
 
     return time_until_game_starts_msg
 
+def create_cs2_game_graphic(cs2_team_next_game, league):
+    #Try/except just in case the team has no logo, return generic question mark logo if they do not
+    try:
+        team_one = Image.open(f"{league}/{cs2_team_next_game[1]}.png")
+    except FileNotFoundError:
+        team_one = Image.open(f"{league}/NO_LOGO.png")
+    try:
+        team_two = Image.open(f"{league}/{cs2_team_next_game[2]}.png")
+    except FileNotFoundError:
+        team_two = Image.open(f"{league}/NO_LOGO.png")
+
+    team_one = team_one.convert("RGBA")
+    team_two = team_two.convert("RGBA")
+    game_graphic = Image.open(f"{league}/GameTemplate.png")
+    game_graphic = game_graphic.convert("RGBA")
+    game_graphic.paste(team_one, (20, 40), team_one)
+    game_graphic.paste(team_two, (490, 40), team_two)
+    game_image = ImageDraw.Draw(game_graphic)
+    font = ImageFont.truetype("arial.ttf", 50)
+    font_time_until_game = ImageFont.truetype("arial.ttf", 30)
+    # Text box for the start time in EST
+    _, _, w, h = game_image.textbbox((0, -350), cs2_team_next_game[0], font=font)
+    game_image.text(((800 - w) / 2, (400 - h) / 2), cs2_team_next_game[0], font=font)
+
+    # Getting the time until game start time msg in format: {days}d {hours}h {minutes}m {seconds}m
+    time_until_game_msg = time_until_game(cs2_team_next_game[0])
+
+    # Creating 2 seperate text boxes for "Game Starts in:" and the time until game message so they can be properly placed at top of PIL image and centered
+    _, _, w2, h2 = game_image.textbbox((0, 380), "Game Starts in:", font=font_time_until_game)
+    _, _, w3, h3 = game_image.textbbox((0, 290 + h2), time_until_game_msg, font=font_time_until_game)
+    x2 = (800 - w2) / 2
+    y2 = (400 - h2) / 2
+    x3 = (800 - w3) / 2
+    y3 = y2 + 25
+
+    # Adding 'Game Starts in' text
+    game_image.text((x2, y2), "Game Starts in:", font=font_time_until_game)
+
+    # Adding the time until the game starts text
+    game_image.text((x3, y3), time_until_game_msg, font=font_time_until_game)
+
+    return game_graphic
+
 #Used to display the next game of the team
 def user_nextgame(league_games_list, league):
     upcoming_game_idx = 0
@@ -553,24 +671,24 @@ def user_nextgame(league_games_list, league):
     home = home.convert("RGBA")
     game_graphic = Image.open(f"{league}/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
-    game_graphic.paste(away, (0, 0), away)
-    game_graphic.paste(home, (400, 0), home)
+    game_graphic.paste(away, (20, 40), away)
+    game_graphic.paste(home, (490, 40), home)
     game_image = ImageDraw.Draw(game_graphic)
     font = ImageFont.truetype("arial.ttf", 50)
-    font_time_until_game = ImageFont.truetype("arial.ttf", 24)
+    font_time_until_game = ImageFont.truetype("arial.ttf", 30)
     #Text box for the start time in EST
-    _, _, w, h = game_image.textbbox((0, -290), league_games_list[upcoming_game_idx][0], font=font)
-    game_image.text(((700-w)/2, (350-h)/2), league_games_list[upcoming_game_idx][0], font=font)
+    _, _, w, h = game_image.textbbox((0, -350), league_games_list[upcoming_game_idx][0], font=font)
+    game_image.text(((800-w)/2, (400-h)/2), league_games_list[upcoming_game_idx][0], font=font)
 
     #Getting the time until game start time msg in format: {days}d {hours}h {minutes}m {seconds}m
     time_until_game_msg =  time_until_game(league_games_list[upcoming_game_idx][0])
 
     #Creating 2 seperate text boxes for "Game Starts in:" and the time until game message so they can be properly placed at top of PIL image and centered
-    _, _, w2, h2 = game_image.textbbox((0, 320), "Game Starts in:", font = font_time_until_game)
+    _, _, w2, h2 = game_image.textbbox((0, 380), "Game Starts in:", font = font_time_until_game)
     _,_, w3, h3 = game_image.textbbox((0, 290 + h2), time_until_game_msg, font = font_time_until_game)
-    x2 = (700 - w2) / 2
-    y2 = (350 - h2) / 2
-    x3 = (700 - w3) / 2
+    x2 = (800 - w2) / 2
+    y2 = (400 - h2) / 2
+    x3 = (800 - w3) / 2
     y3 = y2 + 25
 
     #Adding 'Game Starts in' text
@@ -632,6 +750,18 @@ def get_team_NHL_matches(team_id , startDate, endDate):
 
     return upcoming_match_list
 
+#Get the next game for a cs2 team
+def get_team_CS2_matches(team_id):
+    select_statement = "SELECT * FROM cs2_games WHERE team_one = %s or team_two = %s ORDER BY start_time"
+    values = (team_id, team_id,)
+    cur.execute(select_statement, values)
+    next_game = cur.fetchone()
+
+    if next_game is not None:
+        return list(next_game)
+    else:
+        return None
+
 #Gets all reminders from database
 def get_reminders():
     cur.execute("SELECT * FROM reminders")
@@ -645,9 +775,12 @@ def get_reminders():
         elif reminder[4] == 'NFL':
             away_team = nfl_teams[reminder[2]]
             home_team = nfl_teams[reminder[3]]
-        else:
+        elif reminder[4] == 'NHL':
             away_team = nhl_teams[reminder[2]]
             home_team = nhl_teams[reminder[3]]
+        else:
+            away_team = cs2_data.teams.get(reminder[2], 'TBA')
+            home_team = cs2_data.teams.get(reminder[3], 'TBA')
 
         time_before_game = reminder_times[reminder[5]]
         time_before_game = " ".join(time_before_game.split()[2:4])
@@ -691,6 +824,7 @@ def run_discord_bot():
             synced = await bot.tree.sync()#guild = discord.Object(id = 518631948197822465))
             print(f"Synced {len(synced)} command(s)")
             send_reminders.start()
+            cs2_data.update_cs2_teams_dict.start()
         except Exception as e:
             print(e)
 
@@ -866,5 +1000,65 @@ def run_discord_bot():
             for remind_time_in_mins, remind_time in reminder_times.items() if current.lower() in remind_time.lower()
         ]
     ##########################   NHL RELATED COMMANDS   ###############################
-    
+
+    ##########################   CS2 RELATED COMMANDS START  ###############################
+
+    @bot.tree.command(name="cs2_nextgame", description="Returns a graphic of selected CS2 team upcoming game.")
+    @app_commands.describe(cs2_team="CS2 Team")
+    async def cs2_nextgame(interaction: discord.Interaction, cs2_team: str):
+        if cs2_team in cs2_data.teams:
+            team_name = cs2_data.teams.get(cs2_team)
+            cs2_next_game = get_team_CS2_matches(cs2_team)
+            bytes_io_obj = BytesIO()
+            if cs2_next_game is not None:
+                fixed_date = convert_date(str(cs2_next_game[0]))
+                cs2_next_game[0] = fixed_date
+                create_cs2_game_graphic(cs2_next_game, "CS2").save(bytes_io_obj, 'PNG')
+                bytes_io_obj.seek(0)
+                game_embed = discord.Embed(title=f'{cs2_data.teams[cs2_next_game[1]]} vs. {cs2_data.teams[cs2_next_game[2]]}', url = cs2_next_game[5])
+                game_embed.set_image(url = "attachment://image.png")
+                game_embed.add_field(name = 'Series Type: ', value = cs2_next_game[3])
+                game_embed.add_field(name = 'Match Environment: ', value = cs2_next_game[4])
+
+                await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename='image.png'), embed = game_embed)
+            else:
+                await interaction.response.send_message("No Upcoming Games for " + team_name)
+
+    @bot.tree.command(name="cs2_remindme", description="User can set reminders for multiple teams")
+    @app_commands.describe(cs2_team="CS2 Team that user will get game time reminders for")
+    @app_commands.describe(remind_time="Time at which user will be reminded before selected CS2 team game starts.")
+    async def cs2_remindme(interaction: discord.Interaction, cs2_team: str, remind_time: int):
+        if cs2_team in cs2_data.teams:
+            response = insert_or_update_user(str(interaction.user.id), cs2_team, remind_time, 'cs2')
+            await interaction.response.send_message(response)
+
+    # Slash command for removing reminders for CS2 teams
+    @bot.tree.command(name="cs2_remove_reminders", description="User can remove reminders for teams")
+    @app_commands.describe(cs2_team="CS2 Team that user will remove game time reminders for")
+    async def cs2_remove_reminders(interaction: discord.Interaction, cs2_team: str):
+        if cs2_team in cs2_data.teams:
+            response = remove_reminders(str(interaction.user.id), cs2_team, 'cs2')
+            await interaction.response.send_message(response)
+
+    @cs2_nextgame.autocomplete('cs2_team')
+    @cs2_remindme.autocomplete('cs2_team')
+    @cs2_remove_reminders.autocomplete('cs2_team')
+    #Only gets first 25 teams (LIMIT)
+    async def cs2_nextgame_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[
+        app_commands.Choice[str]]:
+        return [
+                   app_commands.Choice(name=cs2_team, value=team_id)
+                   for team_id, cs2_team in cs2_data.teams.items() if current.lower() in cs2_team.lower()
+               ][:25]
+
+    @cs2_remindme.autocomplete('remind_time')
+    # Only gets first 25 teams (LIMIT)
+    async def cs2_remind_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[
+        app_commands.Choice[str]]:
+        return [
+            app_commands.Choice(name=remind_time, value=remind_time_in_mins)
+            for remind_time_in_mins, remind_time in reminder_times.items() if current.lower() in remind_time.lower()
+        ]
+
+    ###########################   CS2 RELATED COMMANDS END  ################################
     bot.run(TOKEN)
