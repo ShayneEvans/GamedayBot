@@ -16,22 +16,6 @@ import os
 from json.decoder import JSONDecodeError
 import pytz
 
-
-#def get_cs2_teams_dict(self):
-#    cs2_teams = {}
-#
-#    csv_file = 'teams.csv'
-#    with open(csv_file, newline='') as csvfile:
-#        csvreader = csv.reader(csvfile)
-#
-#        for row in csvreader:
-#            if len(row) >= 2:
-#                key = row[0]
-#                value = row[1]
-#                cs2_teams[key] = value
-
-#    return cs2_teams
-
 # Connecting to database
 conn = psycopg2.connect(
     database= os.environ.get('GamedayBot_database'),
@@ -42,7 +26,6 @@ conn = psycopg2.connect(
     keepalives=1,
     keepalives_idle=1
     )
-
 cur = conn.cursor()
 
 nba_teams = {
@@ -145,13 +128,12 @@ nhl_teams = {
     '54': 'Vegas Golden Knights',
     '55': 'Seattle Kraken'}
 
-
 #Class used to obtain cs2 teams
 class cs2Teams:
     def __init__(self):
         self.teams = {}
 
-    # Creates a dictionary from team_id and team_name columns from cs2_teams in database
+    #Creates a dictionary from team_id and team_name columns from cs2_teams in database
     def get_cs2_teams_dict(self):
         select_statement = "SELECT team_id, team_name FROM cs2_teams"
         cur.execute(select_statement)
@@ -160,10 +142,13 @@ class cs2Teams:
 
         return cs2_teams
 
+    #Every minute check the database to see if there are new teams and then update the dictionary with those temas
+    #so they appear in the autocomplete
     @tasks.loop(minutes=1)
     async def update_cs2_teams_dict(self):
         self.teams = self.get_cs2_teams_dict()
 
+#cs2Teams object contains self updating dictionary of team ids and team names
 cs2_data = cs2Teams()
 
 reminder_times = {
