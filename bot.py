@@ -792,7 +792,12 @@ def run_discord_bot():
                 bytes_io_obj = BytesIO()
                 user_upcoming_game(reminder[2], reminder[3], reminder[4], reminder[5]).save(bytes_io_obj, 'PNG')
                 bytes_io_obj.seek(0)
-                await user.send(file=discord.File(fp=bytes_io_obj, filename='image.png'))
+                #Added this incase users no longer have access to bot in server or DMs
+                try:
+                    await user.send(file=discord.File(fp=bytes_io_obj, filename='image.png'))
+                except discord.Forbidden as e:
+                    print(f"Forbidden error: {e}")
+
                 delete_reminders.append((reminder[0], reminder[1], reminder[2], reminder[3]))
 
         #Deletes reminders that were successfully sent to users
