@@ -138,7 +138,7 @@ def set_reminders_every_2_hours():
                 if game[1] in followed_cs2_teams or game[2] in followed_cs2_teams:
                     game_remind_time_dt, game_remind_time_string = bot.get_game_reminder_time(game[0], user[8])
                     insert_statement = "INSERT INTO reminders (user_id, remind_time, visiting_team, home_team, league, minutes_from_start_time) VALUES (%s, %s, %s, %s, %s, %s)"
-                    values = (user[0], game_remind_time_string, game[1], game[2], 'cs2', user[8])
+                    values = (user[0], game_remind_time_string, game[1], game[2], 'CS2', user[8])
                     #Checks if a reminder has been set for this upcoming game, an insert will not take place if true
                     check_if_exists = "SELECT count(*) FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND remind_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
                     cur_reminders.execute(check_if_exists, (user[0], game[1], game[2],))
