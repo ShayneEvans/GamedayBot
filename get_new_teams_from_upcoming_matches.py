@@ -40,7 +40,7 @@ def insert_new_teams_to_database(new_cs2_teams_list):
     cs2_args_str = ','.join(cur.mogrify("(%s,%s,%s,%s)", i).decode('utf-8')
                             for i in new_cs2_teams_list)
     cur.execute("INSERT INTO cs2_teams VALUES " + (
-        cs2_args_str) + " ON CONFLICT(team_id, team_name, team_url) DO NOTHING")
+        cs2_args_str) + " ON CONFLICT(team_id) DO NOTHING")
     conn.commit()
 
 
@@ -98,7 +98,7 @@ def create_insertable_new_teams_list(new_cs2_team_list):
     insertable_cs2_teams_list = []
 
     for team in new_cs2_team_list:
-        insertable_cs2_teams_list.append((team[0], team[2], f'https://www.hltv.org/team/{team[0]}/{team[2].replace(" ", "-")}', False))
+        insertable_cs2_teams_list.append((team[0], team[1], f'https://www.hltv.org/team/{team[0]}/{team[1].replace(" ", "-")}', False))
 
     return insertable_cs2_teams_list
 
