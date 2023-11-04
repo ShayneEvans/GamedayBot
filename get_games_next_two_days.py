@@ -7,6 +7,9 @@ import os
 def get_all_upcoming_matches(nba_game_list, nfl_game_list, nhl_game_list, startDate, endDate):
     for team, team_str in bot.nba_teams.items():
         nba_game_list.extend(bot.get_team_NBA_matches(team))
+        print(nba_game_list)
+
+
 
     for team, team_str in bot.nfl_teams.items():
         nfl_game_list.extend(bot.get_team_NFL_matches(team))
@@ -44,6 +47,9 @@ def get_all_upcoming_matches(nba_game_list, nfl_game_list, nhl_game_list, startD
 
 #Used to insert next two days of games
 def insert_upcoming_games_to_db(nba_upcoming_games, nfl_upcoming_games, nhl_upcoming_games):
+
+    print(os.environ.get('GamedayBot_database'))
+    print(os.environ.get('GamedayBot_user'))
 
     conn_get_games = psycopg2.connect(
         database= os.environ.get('GamedayBot_database'),
