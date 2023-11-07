@@ -54,7 +54,6 @@ def get_time_until_match(game_start_time):
 
 #Used to scrape new matches
 def get_upcoming_matches():
-    logger = logging.getLogger('selenium_scraper')
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=op)
     url = 'https://www.hltv.org/matches'
     try:
