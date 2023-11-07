@@ -15,6 +15,14 @@ est_time_zone = pytz.timezone('US/Eastern')
 from datetime import datetime
 import psycopg2
 import os
+import logging
+import sys
+
+logging.basicConfig(
+    filename='selenium_scraper.log',  # Specify the log file name
+    level=logging.INFO,  # Set the desired log level (INFO, DEBUG, etc.)
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+)
 
 #Used for date conversion to readable string in EST.
 def convert_date(date):
@@ -53,8 +61,16 @@ def get_time_until_match(game_start_time):
 
 #Used to scrape new matches
 def get_upcoming_matches():
+    logger = logging.getLogger('selenium_scraper')
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=op)
     url = 'https://www.hltv.org/matches'
-    driver.get(url)
+    try:
+        driver.get(url)
+        print(driver.page_source)
+    except Exception as e:
+        print(f"Error occurred at get: {str(e)}")
+        sys.exit(1)
+
     all_matches = driver.find_elements(By.CLASS_NAME, "upcomingMatch")
 
     upcoming_games = []
@@ -66,21 +82,27 @@ def get_upcoming_matches():
         #See if match exists yet, for example could be placeholder for a future match such as Final or semi-final
         #If no exceptions both team names will be obtained.
         try:
+            logger.info("Match exists")
             #Check to see if team is decided yet (doesn't depend on another match result)
             try:
                 team1_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team1 .matchTeamName").text
+                logger.info("Successfully obtained team1 name")
 
-            except NoSuchElementException:
+            except NoSuchElementException as e:
                 team1_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team1 .team").text
+                logger.error(f"An error occured getting team1 name: {str(e)}")
 
             #Check to see if team is decided yet (doesn't depend on another match result)
             try:
                 team2_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team2 .matchTeamName").text
+                logger.info("Successfully obtained team2 name")
 
-            except NoSuchElementException:
+            except NoSuchElementException as e:
                 team2_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team2 .team").text
+                logger.error(f"An error occured getting team2 name: {str(e)}")
 
-        except NoSuchElementException:
+        except NoSuchElementException as e:
+            logger.error(f"Match does not exist: {str(e)}")
             no_game = True
 
         #Scraping match information for each match
@@ -109,6 +131,7 @@ def get_upcoming_matches():
             if team1_id is not None and team2_id is not None:
                 upcoming_games.append((start_time_converted, team1_id, team2_id, match_length.upper(), match_env, match_url))
 
+    driver.close()
     return upcoming_games
 
 #Inserts all new games into database
@@ -125,13 +148,16 @@ def insert_upcoming_matches_to_db(cs2_upcoming_matches):
 
     #If there are upcoming games
     if len(cs2_upcoming_matches) != 0:
+        print(f'Inserting {len(cs2_upcoming_matches)} Games')
         cs2_args_str = ','.join(cur_get_games.mogrify("(%s,%s,%s,%s,%s,%s)", i).decode('utf-8')
                                 for i in cs2_upcoming_matches)
         cur_get_games.execute("INSERT INTO cs2_games VALUES " + (
             cs2_args_str) + " ON CONFLICT(start_time, team_one, team_two) DO NOTHING")
         conn_get_games.commit()
+    else:
+        print("No games to insert")
 
 #Getting upcoming matches from https://www.hltv.org/matches and putting new games into database
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=op)
+#driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=op)
 cs2_upcoming_matches = get_upcoming_matches()
 insert_upcoming_matches_to_db(cs2_upcoming_matches)
