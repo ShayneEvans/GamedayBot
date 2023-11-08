@@ -95,38 +95,38 @@ nfl_teams = {
     '28': 'Washington Commanders'}
 
 nhl_teams = {
-    '1': 'New Jersey Devils',
-    '2': 'New York Islanders',
-    '3': 'New York Rangers',
-    '4': 'Philadelphia Flyers',
-    '5': 'Pittsburgh Penguins',
-    '6': 'Boston Bruins',
-    '7': 'Buffalo Sabres',
-    '8': 'Montréal Canadiens',
-    '9': 'Ottawa Senators',
-    '10': 'Toronto Maple Leafs',
-    '12': 'Carolina Hurricanes',
-    '13': 'Florida Panthers',
-    '14': 'Tampa Bay Lightning',
-    '15': 'Washington Capitals',
-    '16': 'Chicago Blackhawks',
-    '17': 'Detroit Red Wings',
-    '18': 'Nashville Predators',
-    '19': 'St. Louis Blues',
-    '20': 'Calgary Flames',
-    '21': 'Colorado Avalanche',
-    '22': 'Edmonton Oilers',
-    '23': 'Vancouver Canucks',
-    '24': 'Anaheim Ducks',
-    '25': 'Dallas Stars',
-    '26': 'Los Angeles Kings',
-    '28': 'San Jose Sharks',
-    '29': 'Columbus Blue Jackets',
-    '30': 'Minnesota Wild',
-    '52': 'Winnipeg Jets',
-    '53': 'Arizona Coyotes',
-    '54': 'Vegas Golden Knights',
-    '55': 'Seattle Kraken'}
+    'ANA': 'Anaheim Ducks',
+    'ARI': 'Arizona Coyotes',
+    'BOS': 'Boston Bruins',
+    'BUF': 'Buffalo Sabres',
+    'CGY': 'Calgary Flames',
+    'CAR': 'Carolina Hurricanes',
+    'CHI': 'Chicago Blackhawks',
+    'COL': 'Colorado Avalanche',
+    'CBJ': 'Columbus Blue Jackets',
+    'DAL': 'Dallas Stars',
+    'DET': 'Detroit Red Wings',
+    'EDM': 'Edmonton Oilers',
+    'FLA': 'Florida Panthers',
+    'LAK': 'Los Angeles Kings',
+    'MIN': 'Minnesota Wild',
+    'MTL': 'Montreal Canadiens',
+    'NSH': 'Nashville Predators',
+    'NJD': 'New Jersey Devils',
+    'NYI': 'New York Islanders',
+    'NYR': 'New York Rangers',
+    'OTT': 'Ottawa Senators',
+    'PHI': 'Philadelphia Flyers',
+    'PIT': 'Pittsburgh Penguins',
+    'SJS': 'San Jose Sharks',
+    'SEA': 'Seattle Kraken',
+    'STL': 'St. Louis Blues',
+    'TBL': 'Tampa Bay Lightning',
+    'TOR': 'Toronto Maple Leafs',
+    'VAN': 'Vancouver Canucks',
+    'VGK': 'Vegas Golden Knights',
+    'WSH': 'Washington Capitals',
+    'WPG': 'Winnipeg Jets'}
 
 #Class used to obtain cs2 teams
 class cs2Teams:
@@ -714,24 +714,21 @@ def get_team_NFL_matches(team_id):
 
     return nfl_games_list
 
-def get_team_NHL_matches(team_id , startDate, endDate):
-    #Variable for upcoming NHL matches
+def get_team_NHL_matches(team_id):
+    # Variable for upcoming NHL matches
     upcoming_match_list = []
 
-    #Requesting schedule of team and converting request object to json text
-    NHL_json_data = requests.get("https://statsapi.web.nhl.com/api/v1/schedule?teamId=" + str(team_id) +
-                                 "&startDate=" + str(startDate) +
-                                 "&endDate=" + str(endDate))
+    # Requesting schedule of team and converting request object to json text
+    NHL_json_data = requests.get(f"https://api-web.nhle.com/v1/club-schedule/{team_id}/week/now")
     NHL_json = json.loads(NHL_json_data.text)
 
-    number_of_games = len(NHL_json['dates'])
-    for i in range(0, number_of_games):
-        if NHL_json['dates'][i]['games'][0]['status']['abstractGameState'] == "Preview":
-            game_date = NHL_json['dates'][i]['games'][0]['gameDate']
-            visiting_team = NHL_json['dates'][i]['games'][0]['teams']['away']['team']['id']
-            home_team = NHL_json['dates'][i]['games'][0]['teams']['home']['team']['id']
-            if str(visiting_team) in nhl_teams and str(home_team) in nhl_teams:
-                upcoming_match_list.append((convert_date(game_date), str(visiting_team), str(home_team)))
+    number_of_teams = len(NHL_json['games'])
+    for i in range(0, number_of_teams):
+        if (NHL_json['games'][i]['gameState'] == 'FUT'):
+            game_start_time = convert_date(NHL_json['games'][i]['startTimeUTC'])
+            away_team = NHL_json['games'][i]['awayTeam']['abbrev']
+            home_team = NHL_json['games'][i]['homeTeam']['abbrev']
+            upcoming_match_list.append((game_start_time, away_team, home_team))
 
     return upcoming_match_list
 
