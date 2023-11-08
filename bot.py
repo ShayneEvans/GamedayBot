@@ -833,7 +833,7 @@ def run_discord_bot():
 
     ##########################   NBA RELATED COMMANDS   ###############################
 
-    @bot.tree.command(name="nba_nextgame", description="Returns a graphic of selected NBA team upcoming game.")
+    @bot.tree.command(name="nba_nextgame", description="Returns a graphic of selected NBA team upcoming game")
     @app_commands.describe(nba_team = "NBA Team")
     async def nba_nextgame(interaction: discord.Interaction, nba_team: str):
         if nba_team in nba_teams:
@@ -847,16 +847,16 @@ def run_discord_bot():
             else:
                 await interaction.response.send_message("No Upcoming Games for the " + team_name)
 
-    @bot.tree.command(name="nba_remindme", description="User can set reminders for multiple teams")
+    @bot.tree.command(name="nba_remindme", description="Set game time reminders for NBA teams")
     @app_commands.describe(nba_team = "NBA Team that user will get game time reminders for")
-    @app_commands.describe(remind_time = "Time at which user will be reminded before selected NBA team game starts.")
+    @app_commands.describe(remind_time = "Time at which user will be reminded before selected NBA team game starts")
     async def nba_remindme(interaction: discord.Interaction, nba_team: str, remind_time: int):
         if nba_team in nba_teams:
             response = insert_or_update_user(str(interaction.user.id), nba_team, remind_time, 'nba')
             await interaction.response.send_message(response)
 
     #Slash command for removing reminders for NBA teams
-    @bot.tree.command(name="nba_remove_reminders", description="User can set reminders for multiple teams")
+    @bot.tree.command(name="nba_remove_reminders", description="Remove game time reminders for NBA teams")
     @app_commands.describe(nba_team = "NBA Team that user will get game time reminders for")
     async def nba_remove_reminders(interaction: discord.Interaction, nba_team: str):
         if nba_team in nba_teams:
@@ -885,7 +885,7 @@ def run_discord_bot():
 
     ##########################   NFL RELATED COMMANDS   ###############################
 
-    @bot.tree.command(name="nfl_nextgame", description = "Returns a graphic of selected NFL team upcoming game.")
+    @bot.tree.command(name="nfl_nextgame", description = "Returns a graphic of selected NFL team upcoming game")
     #@app_commands.describe(nba_team = "NBA Team")
     async def nfl_nextgame(interaction: discord.Interaction, nfl_team: str):
         if nfl_team in nfl_teams:
@@ -899,17 +899,17 @@ def run_discord_bot():
             else:
                 await interaction.response.send_message("No Upcoming Games for the " + team_name)
 
-    @bot.tree.command(name="nfl_remindme", description="User can set reminders for multiple teams")
+    @bot.tree.command(name="nfl_remindme", description="Set game time reminders for NFL teams")
     @app_commands.describe(nfl_team = "NFL Team that user will get game time reminders for")
-    @app_commands.describe(remind_time = "Time at which user will be reminded before selected NFL team game starts.")
+    @app_commands.describe(remind_time = "Time at which user will be reminded before selected NFL team game starts")
     async def nfl_remindme(interaction: discord.Interaction, nfl_team: str, remind_time: int):
         if nfl_team in nfl_teams:
             response = insert_or_update_user(str(interaction.user.id), nfl_team, remind_time, 'nfl')
             await interaction.response.send_message(response)
             
     #Slash command for removing reminders for nfl teams
-    @bot.tree.command(name="nfl_remove_reminders", description="User can set reminders for multiple teams")
-    @app_commands.describe(nfl_team = "nfl Team that user will get game time reminders for")
+    @bot.tree.command(name="nfl_remove_reminders", description="Remove game time reminders for NFL teams")
+    @app_commands.describe(nfl_team = "NFL team that user will get game time reminders for")
     async def nfl_remove_reminders(interaction: discord.Interaction, nfl_team: str):
         if nfl_team in nfl_teams:
             response = remove_reminders(str(interaction.user.id), nfl_team, 'nfl')
@@ -936,7 +936,7 @@ def run_discord_bot():
 
     ##########################   NHL RELATED COMMANDS   ###############################
 
-    @bot.tree.command(name="nhl_nextgame", description = "Returns a graphic of selected NHL team upcoming game.")
+    @bot.tree.command(name="nhl_nextgame", description = "Returns a graphic of selected NHL team upcoming game")
     async def nhl_nextgame(interaction: discord.Interaction, nhl_team: str):
         if nhl_team in nhl_teams:
             team_name = nhl_teams.get(nhl_team)
@@ -950,17 +950,17 @@ def run_discord_bot():
             else:
                 await interaction.response.send_message("No Upcoming Games for the " + team_name)
 
-    @bot.tree.command(name="nhl_remindme", description="User can set reminders for multiple teams")
+    @bot.tree.command(name="nhl_remindme", description="Set game time reminders for NHL teams")
     @app_commands.describe(nhl_team = "NHL Team that user will get game time reminders for")
-    @app_commands.describe(remind_time = "Time at which user will be reminded before selected NHL team game starts.")
+    @app_commands.describe(remind_time = "Time at which user will be reminded before selected NHL team game starts")
     async def nhl_remindme(interaction: discord.Interaction, nhl_team: str, remind_time: int):
         if nhl_team in nhl_teams:
             response = insert_or_update_user(str(interaction.user.id), nhl_team, remind_time, 'nhl')
             await interaction.response.send_message(response)
             
     #Slash command for removing reminders for nhl teams
-    @bot.tree.command(name="nhl_remove_reminders", description="User can set reminders for multiple teams")
-    @app_commands.describe(nhl_team = "nhl Team that user will get game time reminders for")
+    @bot.tree.command(name="nhl_remove_reminders", description="Remove game time reminders for NHL teams")
+    @app_commands.describe(nhl_team = "NHL team that user will get game time reminders for")
     async def nhl_remove_reminders(interaction: discord.Interaction, nhl_team: str):
         if nhl_team in nhl_teams:
             response = remove_reminders(str(interaction.user.id), nhl_team, 'nhl')
@@ -987,7 +987,7 @@ def run_discord_bot():
 
     ##########################   CS2 RELATED COMMANDS START  ###############################
 
-    @bot.tree.command(name="cs2_nextgame", description="Returns a graphic of selected CS2 team upcoming game.")
+    @bot.tree.command(name="cs2_nextgame", description="Returns an embed of selected CS2 team upcoming game")
     @app_commands.describe(cs2_team="CS2 Team")
     async def cs2_nextgame(interaction: discord.Interaction, cs2_team: str):
         if cs2_team in cs2_data.teams:
@@ -1008,17 +1008,17 @@ def run_discord_bot():
             else:
                 await interaction.response.send_message("No Upcoming Games for " + team_name)
 
-    @bot.tree.command(name="cs2_remindme", description="User can set reminders for multiple teams")
-    @app_commands.describe(cs2_team="CS2 Team that user will get game time reminders for")
-    @app_commands.describe(remind_time="Time at which user will be reminded before selected CS2 team game starts.")
+    @bot.tree.command(name="cs2_remindme", description="Set reminders for CS2 teams")
+    @app_commands.describe(cs2_team="CS2 team that user will get game time reminders for")
+    @app_commands.describe(remind_time="Time at which user will be reminded before selected CS2 team game starts")
     async def cs2_remindme(interaction: discord.Interaction, cs2_team: str, remind_time: int):
         if cs2_team in cs2_data.teams:
             response = insert_or_update_user(str(interaction.user.id), cs2_team, remind_time, 'cs2')
             await interaction.response.send_message(response)
 
     # Slash command for removing reminders for CS2 teams
-    @bot.tree.command(name="cs2_remove_reminders", description="User can remove reminders for teams")
-    @app_commands.describe(cs2_team="CS2 Team that user will remove game time reminders for")
+    @bot.tree.command(name="cs2_remove_reminders", description="Remove game time reminders for CS2 teams")
+    @app_commands.describe(cs2_team="CS2 team that user will remove game time reminders for")
     async def cs2_remove_reminders(interaction: discord.Interaction, cs2_team: str):
         if cs2_team in cs2_data.teams:
             response = remove_reminders(str(interaction.user.id), cs2_team, 'cs2')

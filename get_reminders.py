@@ -81,9 +81,9 @@ def set_reminders_every_2_hours():
                             if(date_now < game_remind_time_dt):
                                 cur_reminders.execute(insert_statement, values)
                                 conn_reminders.commit()
-                                print(f'NBA Games added to reminders')
+                                print(f'[{date_now}]: NBA Game [{values}] added to reminders for user {user}')
                             else:
-                                print("Insert failed, duplicate entry or update to remind time needed")
+                                print(f"[{date_now}]: Insert of NBA games failed: duplicate entry or update to remind time needed")
 
         # If user follows nfl teams
         if followed_nfl_teams is not None:
@@ -104,9 +104,9 @@ def set_reminders_every_2_hours():
                             if(date_now < game_remind_time_dt):
                                 cur_reminders.execute(insert_statement, values)
                                 conn_reminders.commit()
-                                print(f'NFL Games added to reminders')
+                                print(f'[{date_now}]: NFL Game [{values}] added to reminders for user {user}')
                             else:
-                                print("Insert failed, duplicate entry or update to remind time needed")
+                                print(f"[{date_now}]: Insert of NFL games failed: duplicate entry or update to remind time needed")
 
         # If user already follows nhl teams
         if followed_nhl_teams is not None:
@@ -127,9 +127,9 @@ def set_reminders_every_2_hours():
                             if(date_now < game_remind_time_dt):
                                 cur_reminders.execute(insert_statement, values)
                                 conn_reminders.commit()
-                                print(f'NHL Games added to reminders')
+                                print(f'[{date_now}]: NHL Game [{values}] added to reminders for user {user}')
                             else:
-                                print("Insert failed, duplicate entry or update to remind time needed")
+                                print(f"[{date_now}]: Insert of NHL games failed: duplicate entry or update to remind time needed")
 
         # If user already follows cs2 teams
         if followed_cs2_teams is not None:
@@ -150,9 +150,9 @@ def set_reminders_every_2_hours():
                             if(date_now < game_remind_time_dt):
                                 cur_reminders.execute(insert_statement, values)
                                 conn_reminders.commit()
-                                print(f'CS2 Games added to reminders')
+                                print(f'[{date_now}]: CS2 Game [{values}] added to reminders for user {user}')
                             else:
-                                print("Insert failed, duplicate entry or update to remind time needed")
+                                print(f"[{date_now}]: Insert of CS2 games failed: duplicate entry or update to remind time needed")
 
 
     cur_reminders.close()

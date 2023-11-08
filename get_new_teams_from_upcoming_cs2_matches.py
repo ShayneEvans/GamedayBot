@@ -41,7 +41,7 @@ def get_cs2_teams_list():
 
 #Inserts newly found teams into database
 def insert_new_teams_to_database(new_cs2_teams_list):
-    psycopg2.connect(
+    conn = psycopg2.connect(
   		database= os.environ.get('GamedayBot_database'),
         user= os.environ.get('GamedayBot_user'),
         password= os.environ.get('GamedayBot_password'),

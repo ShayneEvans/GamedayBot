@@ -53,24 +53,28 @@ def insert_upcoming_games_to_db(nba_upcoming_games, nfl_upcoming_games, nhl_upco
     )
 
     cur_get_games = conn_get_games.cursor()
+    current_time = datetime.now()
 
     if len(nba_upcoming_games) != 0:
         nba_args_str = ','.join(cur_get_games.mogrify("(%s,%s,%s)", i).decode('utf-8')
                         for i in nba_upcoming_games)
         cur_get_games.execute("INSERT INTO nba_games VALUES " + (nba_args_str) + " ON CONFLICT(start_time, visiting_team, home_team) DO NOTHING")
         conn_get_games.commit()
+        print(f"[{current_time}]: Insert of {len(nba_upcoming_games)} NBA attempted.")
 
     if len(nfl_upcoming_games) != 0:
         nfl_args_str = ','.join(cur_get_games.mogrify("(%s,%s,%s)", i).decode('utf-8')
                         for i in nfl_upcoming_games)
         cur_get_games.execute("INSERT INTO nfl_games VALUES " + (nfl_args_str) + " ON CONFLICT(start_time, visiting_team, home_team) DO NOTHING")
         conn_get_games.commit()
+        print(f"[{current_time}]: Insert of {len(nfl_upcoming_games)} NFL games attempted.")
 
     if len(nhl_upcoming_games) != 0:
         nhl_args_str = ','.join(cur_get_games.mogrify("(%s,%s,%s)", i).decode('utf-8')
                         for i in nhl_upcoming_games)
         cur_get_games.execute("INSERT INTO nhl_games VALUES " + (nhl_args_str) + " ON CONFLICT(start_time, visiting_team, home_team) DO NOTHING")
         conn_get_games.commit()
+        print(f"[{current_time}]: Insert of {len(nhl_upcoming_games)} NHL games attempted.")
 
     cur_get_games.close()
     conn_get_games.close()
