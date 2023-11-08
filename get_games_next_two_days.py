@@ -12,7 +12,7 @@ def get_all_upcoming_matches(nba_game_list, nfl_game_list, nhl_game_list, startD
         nfl_game_list.extend(bot.get_team_NFL_matches(team))
 
     for team, team_str in bot.nhl_teams.items():
-        nhl_game_list.extend(bot.get_team_NHL_matches(team, startDate, endDate))
+        nhl_game_list.extend(bot.get_team_NHL_matches(team))
 
     nba_games = sorted(set(nba_game_list), key = lambda x: x[0])
     nfl_games = sorted(set(nfl_game_list), key=lambda x: x[0])

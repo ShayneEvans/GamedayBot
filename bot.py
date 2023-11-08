@@ -644,7 +644,6 @@ def user_nextgame(league_games_list, league):
                 break
         else:
             start_time = datetime.strptime(league_games_list[i][0][:-4], "%m-%d-%Y %I:%M %p")
-
             if datetime.now() >= start_time:
                 if upcoming_game_idx +1 != len(league_games_list):
                     upcoming_game_idx += 1
@@ -941,9 +940,7 @@ def run_discord_bot():
     async def nhl_nextgame(interaction: discord.Interaction, nhl_team: str):
         if nhl_team in nhl_teams:
             team_name = nhl_teams.get(nhl_team)
-            NHL_schedule_startDate = date.today()
-            NHL_schedule_endDate = date(date.today().year + 1, 12, 31)
-            nhl_games_list = get_team_NHL_matches(nhl_team, NHL_schedule_startDate, NHL_schedule_endDate)
+            nhl_games_list = get_team_NHL_matches(nhl_team)
             bytes_io_obj = BytesIO()
 
             if len(nhl_games_list) > 0:
