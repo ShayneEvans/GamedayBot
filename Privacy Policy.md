@@ -1,5 +1,7 @@
 # Privacy Policy
 
+Last updated: November 08, 2023
+
 ## Usage of Data
 
 The bot may use stored data, as defined below, for different features including but not limited to: Reminding users when their desired NBA/NFL/NHL/CS2 games are.  
