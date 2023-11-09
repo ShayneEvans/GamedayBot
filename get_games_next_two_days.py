@@ -1,6 +1,6 @@
 import bot
 import psycopg2
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import os
 
 #Gets ALL upcoming games

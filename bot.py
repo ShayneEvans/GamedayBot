@@ -265,8 +265,8 @@ def update_reminder_time_on_reminders_table(user_id, new_time, league):
         cur.execute(game_start_time_query, values)
         game_start_time = cur.fetchone()
         new_game_remind_time = game_start_time[0] - timedelta(minutes = new_time)
-        #If setting reminder that would have already happened, delete record
-
+        
+		#if setting reminder that would have already happened, delete record
         current_date = datetime.strptime(datetime.now().strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
         if current_date < new_game_remind_time:
             update_statement = "UPDATE reminders SET remind_time = %s, minutes_from_start_time = %s WHERE user_id = %s AND remind_time = %s AND visiting_team = %s AND home_team = %s"
@@ -323,6 +323,12 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
     #id_query_result = await db.execute(id_query, (user_id,))
     id_query_result = cur.fetchone()
 
+    #Formatting the team name for output message
+    if league != 'cs2':
+        msg_team_name = f'the {team_name}'
+    else:
+        msg_team_name = team_name
+
     #If not in database add user with entered team and remind time
     if id_query_result is None:
         insert_statement = "INSERT INTO users (user_id, " + league_teams + ", " + league_remind_time + ") VALUES (%s, %s, %s)"
@@ -330,7 +336,7 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
         cur.execute(insert_statement, values)
         conn.commit()
         set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
-        return f"Now receiving reminders for the {team_name} {remind_string[10:]}."
+        return f"Now receiving reminders for {msg_team_name} {remind_string[10:]}."
     #User already in database but adding reminders for different leagues
     elif id_query_result[teams_query_idx] is None:
         update_statement = "UPDATE users SET " + league_teams + " = %s, " + league_remind_time + " = %s WHERE user_id = %s"
@@ -339,7 +345,7 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
         conn.commit()
         #Will add reminders for the upcoming games of all teams that the user follows including the just newly added team
         set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
-        return f"Now receiving reminders for the {team_name} {remind_string[10:]}. {update_reminder_times_msg}"
+        return f"Now receiving reminders for {msg_team_name} {remind_string[10:]}. {update_reminder_times_msg}"
     #User already follows teams and has reminders set,they want to follow another team and possibly want different reminder time
     else:
         #Getting the VARCHAR of teams that the user follows, has this format string: TEAM1,TEAM2,TEAM3,....
@@ -356,7 +362,7 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
             conn.commit()
             set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
             update_reminder_times_msg = update_reminder_time_on_reminders_table(user_id, remind_time, league.upper())
-            return f"Now receiving reminders for the {team_name} {remind_string[10:]}. {update_reminder_times_msg}"
+            return f"Now receiving reminders for {msg_team_name} {remind_string[10:]}. {update_reminder_times_msg}"
 
         #If only remind time is different change it also is updated in the reminders table
         elif updated_reminder_teams_string == id_query_result[teams_query_idx] and remind_time != id_query_result[remind_times_query_idx]:
@@ -367,7 +373,7 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
             conn.commit()
             set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
             update_reminder_times_msg = update_reminder_time_on_reminders_table(user_id, remind_time, league.upper()) #######################################################
-            return f"Remind time successfully changed to {remind_string[10:]} for the {team_name}. {update_reminder_times_msg}"
+            return f"Remind time successfully changed to {remind_string[10:]} for {msg_team_name}. {update_reminder_times_msg}"
 
         #User wants to get reminders for a new team
         elif updated_reminder_teams_string != id_query_result[teams_query_idx] and remind_time == id_query_result[remind_times_query_idx]:
@@ -377,11 +383,11 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
             conn.commit()
             #Will add reminders for the upcoming games of all teams that the user follows including the just newly added team
             set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
-            return f"Now receiving reminders for the {team_name} {remind_string[10:]}."
+            return f"Now receiving reminders for {msg_team_name} {remind_string[10:]}."
 
         else:
             set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
-            return f"UPDATE not made, you already receive game reminders for the {team_name} {remind_string[10:]}."
+            return f"UPDATE not made, you already receive game reminders for {msg_team_name} {remind_string[10:]}."
 
 #Function used to remove reminders for a user for a specific team
 def remove_reminders(user_id, team_id, league):
@@ -407,7 +413,15 @@ def remove_reminders(user_id, team_id, league):
     cur.execute(id_query, (user_id,))
     id_query_result = cur.fetchone()
 
-    #If reminders have been set for this team
+    #Formatting the team name and league name for output message
+    if league != 'cs2':
+        msg_team_name = f'the {team_name}'
+        msg_league_name = f'the {league.upper()}'
+    else:
+        msg_team_name = team_name
+        msg_league_name = league.upper()
+
+    #If reminders have been set for this team remove them
     if team_id in id_query_result[teams_query_idx]:
         updated_reminder_teams_bit_string = id_query_result[teams_query_idx]
         updated_reminder_teams_bit_string = updated_reminder_teams_bit_string.replace(team_id + ',', '')
@@ -419,16 +433,13 @@ def remove_reminders(user_id, team_id, league):
         values = (user_id, team_id, team_id,)
         cur.execute(delete_statement, values)
         conn.commit()
-        if league != 'cs2':
-            return f"Reminders removed for the {team_name}"
-        else:
-            return f"Reminders removed for {team_name}"
+        return f"Reminders removed for {msg_team_name}"
     #User has no reminders for the selected team
     elif team_id not in id_query_result[teams_query_idx]:
-        return f"You do not have any reminders set for the {team_name}"
+        return f"You do not have any reminders set for {msg_team_name}"
     #User has no reminders for the specified league.
     elif id_query_result[teams_query_idx] is None:
-        return f"You do not have any reminders set for the {league.upper()}"
+        return f"You do not have any reminders set for {msg_league_name}"
     # User does not exist in database
     elif id_query_result is None:
         return f"You do not have any reminders set for any leagues."
@@ -482,7 +493,7 @@ def remove_all_reminders_fn(user_id, league):
     elif league == 'NHL' and id_query_result[5] is None:
         return "You have no reminders set for any NHL teams."
     # Valid reminders have been set for this league and should be removed
-    elif league == 'cs2' and id_query_result[5] is not None:
+    elif league == 'CS2' and id_query_result[5] is not None:
         update_statement = "UPDATE users SET cs2_teams = %s, CS2_remind_time = %s WHERE user_id = %s"
         values = (None, None, user_id)
         cur.execute(update_statement, values)
@@ -497,15 +508,15 @@ def remove_all_reminders_fn(user_id, league):
         return "You have no reminders set for any CS2 teams."
 
     elif league == 'ALL' and not all(followed_teams_list is None for followed_teams_list in (id_query_result[1], id_query_result[3], id_query_result[5])):
-        update_statement = "UPDATE users SET nba_teams = %s, nba_remind_time = %s, nfl_teams = %s, nfl_remind_time = %s, nhl_teams = %s, nhl_remind_time = %s WHERE user_id = %s"
-        values = (None, None, None, None, None, None, user_id)
+        update_statement = "DELETE FROM users where user_id = %s"
+        values = (user_id,)
         cur.execute(update_statement, values)
         conn.commit()
         delete_statement = "DELETE FROM reminders WHERE user_id = %s"
         values = (user_id,)
         cur.execute(delete_statement, values)
         conn.commit()
-        return f"All reminders have been successfully removed"
+        return f"User removed from database. All reminders have been successfully removed"
     else:
         return "You have no reminders for any leagues."
 
@@ -792,7 +803,8 @@ def run_discord_bot():
                 try:
                     await user.send(file=discord.File(fp=bytes_io_obj, filename='image.png'))
                 except discord.Forbidden as e:
-                    print(f"Forbidden error: {e}")
+                    print(f"Forbidden error: {e} {user.id}")
+
 
                 delete_reminders.append((reminder[0], reminder[1], reminder[2], reminder[3]))
 
@@ -823,6 +835,7 @@ def run_discord_bot():
         discord.app_commands.Choice(name = 'NBA', value = 'NBA'),
         discord.app_commands.Choice(name = 'NFL', value = 'NFL'),
         discord.app_commands.Choice(name = 'NHL', value = 'NHL'),
+        discord.app_commands.Choice(name = 'CS2', value = 'CS2'),
         discord.app_commands.Choice(name = 'All Leagues', value = 'ALL')
     ])
     async def remove_all_reminders(interaction: discord.Interaction, league: discord.app_commands.Choice[str]):
