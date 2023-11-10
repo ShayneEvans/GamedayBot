@@ -15,6 +15,7 @@ import psycopg2
 import os
 from json.decoder import JSONDecodeError
 import pytz
+from typing import Literal, Optional
 
 # Connecting to database
 conn = psycopg2.connect(
