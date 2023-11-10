@@ -9,6 +9,7 @@ from selenium.common.exceptions import NoSuchElementException
 op = webdriver.ChromeOptions()
 op.add_argument("--headless=new")
 op.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
+op.add_argument("--no-sandbox")
 from dateutil import parser
 import pytz
 est_time_zone = pytz.timezone('US/Eastern')
