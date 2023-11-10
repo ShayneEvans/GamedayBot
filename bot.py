@@ -785,8 +785,42 @@ def run_discord_bot():
     TOKEN = os.environ.get('GamedayBot_TOKEN')
     intents = discord.Intents.default()
     intents.message_content = True
-    bot = commands.Bot(command_prefix = '/', intents=intents)
+    bot = commands.Bot(command_prefix = '!', intents=intents)
 
+    @bot.command()
+    @commands.dm_only()
+    @commands.is_owner()
+    async def sync(ctx: commands.Context, guilds: commands.Greedy[discord.Object],
+                   spec: Optional[Literal["~", "*", "^"]] = None) -> None:
+        if not guilds:
+            if spec == "~":
+                synced = await ctx.bot.tree.sync(guild=ctx.guild)
+            elif spec == "*":
+                ctx.bot.tree.copy_global_to(guild=ctx.guild)
+                synced = await ctx.bot.tree.sync(guild=ctx.guild)
+            elif spec == "^":
+                ctx.bot.tree.clear_commands(guild=ctx.guild)
+                await ctx.bot.tree.sync(guild=ctx.guild)
+                synced = []
+            else:
+                synced = await ctx.bot.tree.sync()
+
+            await ctx.send(
+                f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
+            )
+            return
+
+        ret = 0
+        for guild in guilds:
+            try:
+                await ctx.bot.tree.sync(guild=guild)
+            except discord.HTTPException:
+                pass
+            else:
+                ret += 1
+
+        await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
+	
     @tasks.loop(seconds=15)
     async def send_reminders():
         reminders_to_send = get_reminders()
@@ -819,8 +853,6 @@ def run_discord_bot():
     async def on_ready():
         print(f'{bot.user} is now running!')
         try:
-            synced = await bot.tree.sync()#guild = discord.Object(id = 518631948197822465))
-            print(f"Synced {len(synced)} command(s)")
             send_reminders.start()
             cs2_data.update_cs2_teams_dict.start()
         except Exception as e:
