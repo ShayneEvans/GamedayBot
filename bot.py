@@ -138,7 +138,7 @@ nhl_teams = {
 #Class used to obtain cs2 teams
 class cs2Teams:
     def __init__(self):
-        self.teams = {}
+        self.teams = self.get_cs2_teams_dict()
 
     #Creates a dictionary from team_id and team_name columns from cs2_teams in database
     def get_cs2_teams_dict(self):
@@ -569,14 +569,21 @@ def get_team_NBA_matches(team_id):
 
 #Used when sending user reminders, since it could be a reminder for any of the 3 leagues this is handeled dynamically with league name as a parameter
 def user_upcoming_game(away_team_id, home_team_id, league, reminder_message):
-    if league == 'CS2':
-        if away_team_id == 'None':
-            away_team_id = 'NO_LOGO'
     reminder_message_split_up = reminder_message.split("starts")
     reminder_message_split_up[1] = "".join("starts" + reminder_message_split_up[1])
-    away = Image.open(league +"/" + away_team_id + '.png')
+    #Making sure logo can be found of team
+    try:
+        away = Image.open(f'{league}/{away_team_id}.png')
+    except FileNotFoundError as e:
+        away = Image.open(f'{league}/NO_LOGO.png')
+    
+    #Making sure logo can be found of team
+    try:
+        home = Image.open(f'{league}/{home_team_id}.png')
+    except FileNotFoundError as e:
+        home = Image.open(f'{league}/NO_LOGO.png')
+    
     away = away.convert("RGBA")
-    home = Image.open(league +"/" + home_team_id + '.png')
     home = home.convert("RGBA")
     game_graphic = Image.open(league +"/GameTemplate.png")
     game_graphic = game_graphic.convert("RGBA")
@@ -761,9 +768,9 @@ def get_team_CS2_matches(team_id):
     else:
         return None
 
-#Gets all reminders from database
+#Gets all reminders from database that need to be sent to users
 def get_reminders():
-    cur.execute("SELECT * FROM reminders")
+    cur.execute("SELECT * FROM reminders WHERE remind_time <= NOW()")
     reminders = cur.fetchall()
     reminders_with_messages = []
 
@@ -777,7 +784,8 @@ def get_reminders():
         elif reminder[4] == 'NHL':
             away_team = nhl_teams[reminder[2]]
             home_team = nhl_teams[reminder[3]]
-        else:
+        elif reminder[4] == 'CS2':
+            #Defaults to 'TBA' if team does not exist in dictionary
             away_team = cs2_data.teams.get(reminder[2], 'TBA')
             home_team = cs2_data.teams.get(reminder[3], 'TBA')
 
@@ -833,9 +841,9 @@ def run_discord_bot():
         reminders_to_send = get_reminders()
         delete_reminders = []
         delete_users = []
-
         for reminder in reminders_to_send:
             #If current time is past the reminder time or equal to it then send message to user!
+
             if datetime.now() >= reminder[1]:
                 user = await bot.fetch_user(reminder[0])
                 bytes_io_obj = BytesIO()
