@@ -18,15 +18,21 @@ import pytz
 from typing import Literal, Optional
 
 # Connecting to database
-conn = psycopg2.connect(
-    database= os.environ.get('GamedayBot_database'),
-    user= os.environ.get('GamedayBot_user'),
-    password= os.environ.get('GamedayBot_password'),
-    host = os.environ.get('GamedayBot_host'),
-    port = os.environ.get('GamedayBot_port'),
-    keepalives=1,
-    keepalives_idle=1
-    )
+try:
+    conn = psycopg2.connect(
+        database= os.environ.get('GamedayBot_database'),
+        user= os.environ.get('GamedayBot_user'),
+        password= os.environ.get('GamedayBot_password'),
+        host = os.environ.get('GamedayBot_host'),
+        port = os.environ.get('GamedayBot_port'),
+        keepalives=1,
+        keepalives_idle=1
+        )
+    cur = conn.cursor()
+
+except psycopg2.Error as e:
+    print("Error connecting to the database:", e)
+
 cur = conn.cursor()
 
 nba_teams = {
@@ -145,7 +151,7 @@ class cs2Teams:
 
     #Every minute check the database to see if there are new teams and then update the dictionary with those temas
     #so they appear in the autocomplete
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes=1440)
     async def update_cs2_teams_dict(self):
         self.teams = self.get_cs2_teams_dict()
 
@@ -745,7 +751,7 @@ def get_team_NHL_matches(team_id):
 
 #Get the next game for a cs2 team
 def get_team_CS2_matches(team_id):
-    select_statement = "SELECT * FROM cs2_games WHERE team_one = %s or team_two = %s ORDER BY start_time"
+    select_statement = "SELECT * FROM cs2_games WHERE (team_one = %s or team_two = %s) AND start_time > NOW() ORDER BY start_time"
     values = (team_id, team_id,)
     cur.execute(select_statement, values)
     next_game = cur.fetchone()
@@ -826,6 +832,7 @@ def run_discord_bot():
     async def send_reminders():
         reminders_to_send = get_reminders()
         delete_reminders = []
+        delete_users = []
 
         for reminder in reminders_to_send:
             #If current time is past the reminder time or equal to it then send message to user!
@@ -838,7 +845,8 @@ def run_discord_bot():
                 try:
                     await user.send(file=discord.File(fp=bytes_io_obj, filename='image.png'))
                 except discord.Forbidden as e:
-                    print(f"Forbidden error: {e} {user.id}")
+                    print(f"Forbidden error: {e} {user.id}, deleting user")
+                    delete_users.append(user.id)
 
 
                 delete_reminders.append((reminder[0], reminder[1], reminder[2], reminder[3]))
@@ -847,6 +855,13 @@ def run_discord_bot():
         for reminder in delete_reminders:
             delete_statement = "DELETE FROM reminders WHERE user_id = %s AND remind_time = %s AND visiting_team = %s AND home_team = %s"
             values = (reminder[0], reminder[1], reminder[2], reminder[3],)
+            cur.execute(delete_statement, values)
+            conn.commit()
+
+        #Deleting all users from database where it is impossible to send messages to them
+        for user_id in delete_users:
+            delete_statement = "DELETE FROM users WHERE user_id = %s"
+            values = (user_id,)
             cur.execute(delete_statement, values)
             conn.commit()
 
