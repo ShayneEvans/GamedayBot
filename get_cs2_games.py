@@ -148,49 +148,6 @@ def insert_upcoming_matches_to_db(cs2_upcoming_matches):
     conn_get_games.close()
     return result_message
 
-#CS2 Games times are sometimes pushed forward or backwards, this will be used to validate start times and change reminders accordingly
-def validate_cs2_reminders():
-    conn_get_games = psycopg2.connect(
-        database= os.environ.get('GamedayBot_database'),
-        user= os.environ.get('GamedayBot_user'),
-        password= os.environ.get('GamedayBot_password'),
-        host= os.environ.get('GamedayBot_host'),
-        port= os.environ.get('GamedayBot_port')
-    )
-
-    cur_get_games = conn_get_games.cursor()
-
-    select_statement = "SELECT * FROM reminders WHERE league = 'CS2'"
-    cur_get_games.execute(select_statement)
-    reminders = cur_get_games.fetchall()
-
-    for reminder in reminders:
-        user_id = reminder[0]
-        remind_time = reminder[1]
-        visiting_team = reminder[2]
-        home_team = reminder[3]
-        league = reminder[4]
-        minutes_from_start_time = reminder[5]
-
-        select_statement = "SELECT start_time FROM cs2_games WHERE team_one = %s AND team_two = %s"
-        values = (visiting_team, home_team,)
-        cur_get_games.execute(select_statement, values)
-        game_start_time = cur_get_games.fetchone()[0]
-        
-        #Validation time should match remind time or replace remind time with new validated time
-        validation_time = game_start_time - timedelta(minutes=minutes_from_start_time)
-
-        #If not equal update the remind time to the fixed one
-        if validation_time != remind_time:
-            print(f"Reminder time being reset due to validation error: OLD TIME: {remind_time}, NEW TIME: {validation_time}")
-            update_statement = 'UPDATE reminders SET remind_time = %s WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND league = %s'
-            values = (validation_time, user_id, visiting_team, home_team, league,)
-            cur_get_games.execute(update_statement, values)
-            conn_get_games.commit()
-
-    cur_get_games.close()
-    conn_get_games.close()    
-
 #Getting upcoming matches from https://www.hltv.org/matches and putting new games into database
 start_time = time.time()
 cs2_upcoming_matches = get_upcoming_matches()
@@ -199,4 +156,3 @@ end_time = time.time()
 execution_time = end_time - start_time
 current_time = datetime.now()
 print(f"[{current_time}]: Executed get_cs2_games in {execution_time} seconds, RESULT: {insert_result}")
-validate_cs2_reminders()
