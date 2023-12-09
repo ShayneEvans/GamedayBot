@@ -855,7 +855,7 @@ def run_discord_bot():
                     await user.send(file=discord.File(fp=bytes_io_obj, filename='image.png'))
                 except discord.Forbidden as e:
                     print(f"Forbidden error: {e} {user.id}, deleting user")
-                    delete_users.append(user.id)
+                    delete_users.append(reminder[0])
 
 
                 delete_reminders.append((reminder[0], reminder[1], reminder[2], reminder[3]))
@@ -870,7 +870,7 @@ def run_discord_bot():
         #Deleting all users from database where it is impossible to send messages to them
         for user_id in delete_users:
             delete_statement = "DELETE FROM users WHERE user_id = %s"
-            values = (int(user_id),)
+            values = (str(user_id),)
             cur.execute(delete_statement, values)
             conn.commit()
 
