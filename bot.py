@@ -770,7 +770,7 @@ def get_team_CS2_matches(team_id):
 
 #Gets all reminders from database that need to be sent to users
 def get_reminders():
-    cur.execute("SELECT * FROM reminders WHERE remind_time <= NOW()")
+    cur.execute("SELECT * FROM reminders")
     reminders = cur.fetchall()
     reminders_with_messages = []
 
@@ -842,6 +842,7 @@ def run_discord_bot():
         delete_reminders = []
         delete_users = []
         for reminder in reminders_to_send:
+            #print(reminder)
             #If current time is past the reminder time or equal to it then send message to user!
 
             if datetime.now() >= reminder[1]:
@@ -869,7 +870,7 @@ def run_discord_bot():
         #Deleting all users from database where it is impossible to send messages to them
         for user_id in delete_users:
             delete_statement = "DELETE FROM users WHERE user_id = %s"
-            values = (user_id,)
+            values = (int(user_id),)
             cur.execute(delete_statement, values)
             conn.commit()
 
