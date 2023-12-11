@@ -218,39 +218,30 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
     cur.execute(upcoming_games)
     upcoming_games_query_result = cur.fetchall()
 
-    #These will not be None if user follows any teams will be updated in code below
-    followed_league_teams = None
-
+    #If there are teams the user follows, obtain that list
     if user[0][teams_query_idx] is not None:
         followed_league_teams = list(user[0][teams_query_idx].split(','))
     
     current_date = datetime.strptime(datetime.now().strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
 
-    #If user follows teams in the league
-    if followed_league_teams is not None:
-        for game in upcoming_games_query_result:
-            #If home team or visiting team in followed league teams insert a reminder for that game, duplicate games are avoided with a check for the count
-            if game[1] in followed_league_teams or game[2] in followed_league_teams:
-                game_remind_time_dt, game_remind_time_string = get_game_reminder_time(game[0], user[0][remind_times_query_idx])
-                #If past the remind time, do not set it.
-                if current_date < game_remind_time_dt:
-                    insert_statement = "INSERT INTO reminders (user_id, remind_time, visiting_team, home_team, league, minutes_from_start_time) VALUES (%s, %s, %s, %s, %s, %s)"
-                    values = (user[0][0], game_remind_time_string, game[1], game[2], league.upper(), user[0][remind_times_query_idx])
-                    #Checks if a reminder has been set for this upcoming game, an insert will not take place if true
-                    check_if_exists = "SELECT count(*) FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND remind_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
-                    cur.execute(check_if_exists, (user[0][0], game[1], game[2],))
-                    #If this reminder doesn't exist
-                    if cur.fetchone()[0] == 0:
-                        #Check if game was inputted with swapped teams
-                        check_if_exists_swapped = "SELECT count(*) FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND remind_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
-                        cur.execute(check_if_exists_swapped, (user[0][0], game[2], game[1]))
-                        #If this reminder doesn't exist, it is a new reminder
-                        if cur.fetchone()[0] == 0:
-                            cur.execute(insert_statement, values)
-                            conn.commit()
-                            print(f'{league} Games added to reminders')
-                    else:
-                        print("Insert failed, duplicate entry or update to remind time needed")
+    #Iterating through all games
+    for game in upcoming_games_query_result:
+        #obtaining game remind time in datetime format and in string format
+        game_remind_time_dt, game_remind_time_string = get_game_reminder_time(game[0], user[0][remind_times_query_idx])
+        #If past the remind time, do not set it.
+        if current_date < game_remind_time_dt:
+            insert_statement = "INSERT INTO reminders (user_id, remind_time, visiting_team, home_team, league, minutes_from_start_time) VALUES (%s, %s, %s, %s, %s, %s)"
+            values = (user[0][0], game_remind_time_string, game[1], game[2], league.upper(), user[0][remind_times_query_idx])
+            #Checks if a reminder has been set for this upcoming game, an insert will not take place if true
+            check_if_exists = "SELECT count(*) FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND remind_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
+            cur.execute(check_if_exists, (user[0][0], game[1], game[2],))
+            #If this reminder doesn't exist add it to reminders
+            if cur.fetchone()[0] == 0:
+                cur.execute(insert_statement, values)
+                conn.commit()
+                print(f'{league} Games added to reminders')
+            else:
+                print("Insert failed, duplicate entry or update to remind time needed")
 
 #Used when a user updates the reminder time, updates all existing valid reminders they have set to use the new time
 def update_reminder_time_on_reminders_table(user_id, new_time, league):
@@ -355,6 +346,7 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
         return f"Now receiving reminders for {msg_team_name} {remind_string[10:]}. {update_reminder_times_msg}"
     #User already follows teams and has reminders set,they want to follow another team and possibly want different reminder time
     else:
+        new_team = False
         #Getting the VARCHAR of teams that the user follows, has this format string: TEAM1,TEAM2,TEAM3,....
         updated_reminder_teams_string = id_query_result[teams_query_idx]
         #If team user wants to follow is not in the string then add it
