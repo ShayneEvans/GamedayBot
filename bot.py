@@ -17,7 +17,7 @@ from json.decoder import JSONDecodeError
 import pytz
 from typing import Literal, Optional
 
-# Connecting to database
+#Connecting to database
 try:
     conn = psycopg2.connect(
         database= os.environ.get('GamedayBot_database'),
@@ -210,17 +210,17 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
     user_followed_teams_tuple = tuple(user[0][teams_query_idx].split(","))
 
     #Getting all upcoming games for each league
-    league_games = league +'_games'
-    if league_games != 'cs2_games':
-        upcoming_games = "SELECT * FROM " + league_games + " WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN " + str(user_followed_teams_tuple) + " OR home_team IN " + str(user_followed_teams_tuple) + ")"
+    league_games = league +"_games"
+    if league_games != "cs2_games":
+	upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN {str(user_followed_teams_tuple)} OR home_team IN {str(user_followed_teams_tuple)})"
     else:
-        upcoming_games = "SELECT * FROM " + league_games + " WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (team_one IN " + str(user_followed_teams_tuple) + " OR team_two IN " + str(user_followed_teams_tuple) + ")"
+        upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (team_one IN {str(user_followed_teams_tuple)} OR team_two IN {str(user_followed_teams_tuple)})"
     cur.execute(upcoming_games)
     upcoming_games_query_result = cur.fetchall()
 
     #If there are teams the user follows, obtain that list
     if user[0][teams_query_idx] is not None:
-        followed_league_teams = list(user[0][teams_query_idx].split(','))
+        followed_league_teams = list(user[0][teams_query_idx].split(","))
     
     current_date = datetime.strptime(datetime.now().strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
 
@@ -231,7 +231,7 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
         #If past the remind time, do not set it.
         if current_date < game_remind_time_dt:
             insert_statement = "INSERT INTO reminders (user_id, remind_time, visiting_team, home_team, league, minutes_from_start_time) VALUES (%s, %s, %s, %s, %s, %s)"
-            values = (user[0][0], game_remind_time_string, game[1], game[2], league.upper(), user[0][remind_times_query_idx])
+            values = (user[0][0], game_remind_time_string, game[1], game[2], league.upper(), user[0][remind_times_query_idx],)
             #Checks if a reminder has been set for this upcoming game, an insert will not take place if true
             check_if_exists = "SELECT count(*) FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s AND remind_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
             cur.execute(check_if_exists, (user[0][0], game[1], game[2],))
@@ -239,7 +239,7 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
             if cur.fetchone()[0] == 0:
                 cur.execute(insert_statement, values)
                 conn.commit()
-                print(f'{league} Games added to reminders')
+                print(f"{league} Games added to reminders")
             else:
                 print("Insert failed, duplicate entry or update to remind time needed")
 
@@ -255,16 +255,16 @@ def update_reminder_time_on_reminders_table(user_id, new_time, league):
 
     for reminder in reminders_query_result:
         #Gets the new reminder time for the game by subtracting the old reminder time from the new reminder time and subtracting that from the date time reminder
-        if league != 'CS2':
-            game_start_time_query = "SELECT start_time FROM " + league.lower() + "_games WHERE visiting_team = %s AND home_team = %s AND start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
+        if league != "CS2":
+            game_start_time_query = f"SELECT start_time FROM {league.lower()}_games WHERE visiting_team = %s AND home_team = %s AND start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
         else:
-            game_start_time_query = "SELECT start_time FROM " + league.lower() + "_games WHERE team_one = %s AND team_two = %s AND start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
+            game_start_time_query = f"SELECT start_time FROM {league.lower()}_games WHERE team_one = %s AND team_two = %s AND start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL"
         values = (reminder[2], reminder[3],)
         cur.execute(game_start_time_query, values)
         game_start_time = cur.fetchone()
         new_game_remind_time = game_start_time[0] - timedelta(minutes = new_time)
         
-		#if setting reminder that would have already happened, delete record
+	#if setting reminder that would have already happened, delete record
         current_date = datetime.strptime(datetime.now().strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
         if current_date < new_game_remind_time:
             update_statement = "UPDATE reminders SET remind_time = %s, minutes_from_start_time = %s WHERE user_id = %s AND remind_time = %s AND visiting_team = %s AND home_team = %s"
@@ -278,38 +278,38 @@ def update_reminder_time_on_reminders_table(user_id, new_time, league):
 
     #Returning message to user
     if update_success == 1 and update_error == 0:
-        return f'All previous reminders were successfully updated!'
+        return "All previous reminders were successfully updated!"
     elif update_success == 0 and update_error == 1:
-        return f'No previously set reminders were updated, this is because the new reminder time has already passed. Old reminder time will be used for these games but games moving forward will use the new remind time.'
+        return "No previously set reminders were updated, this is because the new reminder time has already passed. Old reminder time will be used for these games but games moving forward will use the new remind time."
     else:
-        return f'Some previously set reminders were unable to be updated because the new remind time has already passed. Old reminder time will be used for these games only.'
+        return "Some previously set reminders were unable to be updated because the new remind time has already passed. Old reminder time will be used for these games only."
 
 #Function used to insert a new user or update an existing one in the users table
 def insert_or_update_user(user_id, team_id, remind_time, league):
-    league_teams = league + "_teams"
-    league_remind_time = league + "_remind_time"
+    league_teams = f"{league}_teams"
+    league_remind_time = f"{league}_remind_time"
     team_name = ""
     remind_string = ""
     teams_query_idx = 0
     remind_times_query_idx = 0
     update_reminder_times_msg = ""
 
-    if league == 'nba':
+    if league == "nba":
         team_name = nba_teams[team_id]
         remind_string = reminder_times[remind_time]
         teams_query_idx = 1
         remind_times_query_idx = 2
-    elif league == 'nfl':
+    elif league == "nfl":
         team_name = nfl_teams[team_id]
         remind_string = reminder_times[remind_time]
         teams_query_idx = 3
         remind_times_query_idx = 4
-    elif league == 'nhl':
+    elif league == "nhl":
         team_name = nhl_teams[team_id]
         remind_string = reminder_times[remind_time]
         teams_query_idx = 5
         remind_times_query_idx = 6
-    elif league == 'cs2':
+    elif league == "cs2":
         team_name = cs2_data.teams[team_id]
         remind_string = reminder_times[remind_time]
         teams_query_idx = 7
@@ -318,27 +318,26 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
     #Query to see if user already in database or not
     id_query = "SELECT * FROM users WHERE user_id = %s"
     cur.execute(id_query, (user_id,))
-    #id_query_result = await db.execute(id_query, (user_id,))
     id_query_result = cur.fetchone()
 
     #Formatting the team name for output message
-    if league != 'cs2':
-        msg_team_name = f'the {team_name}'
+    if league != "cs2":
+        msg_team_name = f"the {team_name}"
     else:
         msg_team_name = team_name
 
     #If not in database add user with entered team and remind time
     if id_query_result is None:
-        insert_statement = "INSERT INTO users (user_id, " + league_teams + ", " + league_remind_time + ") VALUES (%s, %s, %s)"
-        values = (user_id, team_id + ',', remind_time)
+        insert_statement = f"INSERT INTO users (user_id, {league_teams}, {league_remind_time}) VALUES (%s, %s, %s)"
+        values = (user_id, team_id + ",", remind_time)
         cur.execute(insert_statement, values)
         conn.commit()
         set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
         return f"Now receiving reminders for {msg_team_name} {remind_string[10:]}."
     #User already in database but adding reminders for different leagues
     elif id_query_result[teams_query_idx] is None:
-        update_statement = "UPDATE users SET " + league_teams + " = %s, " + league_remind_time + " = %s WHERE user_id = %s"
-        values = (team_id + ',', remind_time, user_id)
+        update_statement = f"UPDATE users SET {league_teams} = %s, {league_remind_time} = %s WHERE user_id = %s"
+        values = (team_id + ",", remind_time, user_id)
         cur.execute(update_statement, values)
         conn.commit()
         #Will add reminders for the upcoming games of all teams that the user follows including the just newly added team
@@ -351,11 +350,11 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
         updated_reminder_teams_string = id_query_result[teams_query_idx]
         #If team user wants to follow is not in the string then add it
         if team_id not in updated_reminder_teams_string.split(","):
-            updated_reminder_teams_string = f'{updated_reminder_teams_string}{team_id},'
+            updated_reminder_teams_string = f"{updated_reminder_teams_string}{team_id},"
 
         #If both entered team and remind time are different from ones on database update them
         if updated_reminder_teams_string != id_query_result[teams_query_idx] and remind_time != id_query_result[remind_times_query_idx]:
-            update_statement = "UPDATE users SET " + league_teams + " = %s, " + league_remind_time + " = %s WHERE user_id = %s"
+            update_statement = f"UPDATE users SET {league_teams} = %s, {league_remind_time} = %s WHERE user_id = %s"
             values = (updated_reminder_teams_string, remind_time, user_id)
             cur.execute(update_statement, values)
             conn.commit()
@@ -366,17 +365,17 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
         #If only remind time is different change it also is updated in the reminders table
         elif updated_reminder_teams_string == id_query_result[teams_query_idx] and remind_time != id_query_result[remind_times_query_idx]:
 
-            update_statement = "UPDATE users SET " + league_remind_time + " = %s WHERE user_id = %s"
+            update_statement = f"UPDATE users SET {league_remind_time} = %s WHERE user_id = %s"
             values = (remind_time, user_id)
             cur.execute(update_statement, values)
             conn.commit()
             set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query_idx, user_id)
-            update_reminder_times_msg = update_reminder_time_on_reminders_table(user_id, remind_time, league.upper()) #######################################################
+            update_reminder_times_msg = update_reminder_time_on_reminders_table(user_id, remind_time, league.upper())
             return f"Remind time successfully changed to {remind_string[10:]} for {msg_team_name}. {update_reminder_times_msg}"
 
         #User wants to get reminders for a new team
         elif updated_reminder_teams_string != id_query_result[teams_query_idx] and remind_time == id_query_result[remind_times_query_idx]:
-            update_statement = "UPDATE users SET " + league_teams + " = %s WHERE user_id = %s"
+            update_statement = f"UPDATE users SET {league_teams} = %s WHERE user_id = %s"
             values = (updated_reminder_teams_string, user_id)
             cur.execute(update_statement, values)
             conn.commit()
@@ -390,20 +389,20 @@ def insert_or_update_user(user_id, team_id, remind_time, league):
 
 #Function used to remove reminders for a user for a specific team
 def remove_reminders(user_id, team_id, league):
-    league_teams = league + "_teams"
+    league_teams = f"{league}_teams"
     team_name = ""
     teams_query_idx = 0
 
-    if league == 'nba':
+    if league == "nba":
         team_name = nba_teams[team_id]
         teams_query_idx = 1
-    elif league == 'nfl':
+    elif league == "nfl":
         team_name = nfl_teams[team_id]
         teams_query_idx = 3
-    elif league == 'nhl':
+    elif league == "nhl":
         team_name = nhl_teams[team_id]
         teams_query_idx = 5
-    elif league == 'cs2':
+    elif league == "cs2":
         team_name = cs2_data.teams[team_id]
         teams_query_idx = 7
 
@@ -413,9 +412,9 @@ def remove_reminders(user_id, team_id, league):
     id_query_result = cur.fetchone()
 
     #Formatting the team name and league name for output message
-    if league != 'cs2':
-        msg_team_name = f'the {team_name}'
-        msg_league_name = f'the {league.upper()}'
+    if league != "cs2":
+        msg_team_name = f"the {team_name}"
+        msg_league_name = f"the {league.upper()}"
     else:
         msg_team_name = team_name
         msg_league_name = league.upper()
@@ -423,8 +422,8 @@ def remove_reminders(user_id, team_id, league):
     #If reminders have been set for this team remove them
     if team_id in id_query_result[teams_query_idx]:
         updated_reminder_teams_bit_string = id_query_result[teams_query_idx]
-        updated_reminder_teams_bit_string = updated_reminder_teams_bit_string.replace(team_id + ',', '')
-        update_statement = "UPDATE users SET " + league_teams + " = %s WHERE user_id = %s"
+        updated_reminder_teams_bit_string = updated_reminder_teams_bit_string.replace(team_id + ",", "")
+        update_statement = f"UPDATE users SET {league_teams} = %s WHERE user_id = %s"
         values = (updated_reminder_teams_bit_string, user_id)
         cur.execute(update_statement, values)
         conn.commit()
@@ -441,16 +440,16 @@ def remove_reminders(user_id, team_id, league):
         return f"You do not have any reminders set for {msg_league_name}"
     # User does not exist in database
     elif id_query_result is None:
-        return f"You do not have any reminders set for any leagues."
+        return "You do not have any reminders set for any leagues."
 
 #Function used for the /remove_all_reminders slash command. Removes all reminders for a user
 def remove_all_reminders_fn(user_id, league):
-    # Query to see if user already in database or not
+    #Query to see if user already in database or not
     id_query = "SELECT * FROM users WHERE user_id = %s"
     cur.execute(id_query, (user_id,))
     id_query_result = cur.fetchone()
-    # Valid reminders have been set for this league and should be removed
-    if league == 'NBA' and id_query_result[1] is not None:
+    #Valid reminders have been set for this league and should be removed
+    if league == "NBA" and id_query_result[1] is not None:
         update_statement = "UPDATE users SET nba_teams = %s, nba_remind_time = %s WHERE user_id = %s"
         values = (None, None, user_id)
         cur.execute(update_statement, values)
@@ -460,11 +459,11 @@ def remove_all_reminders_fn(user_id, league):
         cur.execute(delete_statement, values)
         conn.commit()
         return f"All NBA reminders have been successfully removed"
-    # No reminders have been set for this league, return error message
-    elif league == 'NBA' and id_query_result[1] is None:
+    #No reminders have been set for this league, return error message
+    elif league == "NBA" and id_query_result[1] is None:
         return "You have no reminders set for any NBA teams."
-    # Valid reminders have been set for this league and should be removed
-    elif league == 'NFL' and id_query_result[3] is not None:
+    #Valid reminders have been set for this league and should be removed
+    elif league == "NFL" and id_query_result[3] is not None:
         update_statement = "UPDATE users SET nfl_teams = %s, nfl_remind_time = %s WHERE user_id = %s"
         values = (None, None, user_id)
         cur.execute(update_statement, values)
@@ -473,12 +472,12 @@ def remove_all_reminders_fn(user_id, league):
         values = (user_id, league,)
         cur.execute(delete_statement, values)
         conn.commit()
-        return f"All NFL reminders have been successfully removed"
-    # No reminders have been set for this league, return error message
-    elif league == 'NFL' and id_query_result[3] is None:
+        return "All NFL reminders have been successfully removed"
+    #No reminders have been set for this league, return error message
+    elif league == "NFL" and id_query_result[3] is None:
         return "You have no reminders set for any NFL teams."
-    # Valid reminders have been set for this league and should be removed
-    elif league == 'nhl' and id_query_result[5] is not None:
+    #Valid reminders have been set for this league and should be removed
+    elif league == "NHL" and id_query_result[5] is not None:
         update_statement = "UPDATE users SET nhl_teams = %s, nhl_remind_time = %s WHERE user_id = %s"
         values = (None, None, user_id)
         cur.execute(update_statement, values)
@@ -487,12 +486,12 @@ def remove_all_reminders_fn(user_id, league):
         values = (user_id, league,)
         cur.execute(delete_statement, values)
         conn.commit()
-        return f"All NHL reminders have been successfully removed"
-    # No reminders have been set for this league, return error message
+        return "All NHL reminders have been successfully removed"
+    #No reminders have been set for this league, return error message
     elif league == 'NHL' and id_query_result[5] is None:
         return "You have no reminders set for any NHL teams."
-    # Valid reminders have been set for this league and should be removed
-    elif league == 'CS2' and id_query_result[5] is not None:
+    #Valid reminders have been set for this league and should be removed
+    elif league == "CS2" and id_query_result[5] is not None:
         update_statement = "UPDATE users SET cs2_teams = %s, CS2_remind_time = %s WHERE user_id = %s"
         values = (None, None, user_id)
         cur.execute(update_statement, values)
@@ -502,11 +501,12 @@ def remove_all_reminders_fn(user_id, league):
         cur.execute(delete_statement, values)
         conn.commit()
         return f"All CS2 reminders have been successfully removed"
-    # No reminders have been set for this league, return error message
-    elif league == 'cs2' and id_query_result[5] is None:
+    #No reminders have been set for this league, return error message
+    elif league == "CS2" and id_query_result[5] is None:
         return "You have no reminders set for any CS2 teams."
 
-    elif league == 'ALL' and not all(followed_teams_list is None for followed_teams_list in (id_query_result[1], id_query_result[3], id_query_result[5])):
+    #Deleting all reminders
+    elif league == 'ALL' and not all(followed_teams_list is None for followed_teams_list in (id_query_result[1], id_query_result[3], id_query_result[5], id_query_result[7])):
         update_statement = "DELETE FROM users where user_id = %s"
         values = (user_id,)
         cur.execute(update_statement, values)
@@ -525,10 +525,10 @@ def get_team_NBA_matches(team_id):
     #Endpoint obtained from https://github.com/rlabausa/nba-schedule-data
     #Try except block used to get correct year. When NBA season goes to next year will still be using the previous year, this is how the URL works
     try:
-        NBA_json_data = requests.get("https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/" + str(currentNBAYear) + "/league/00_full_schedule.json")
+        NBA_json_data = requests.get(f"https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/{currentNBAYear}/league/00_full_schedule.json")
         NBA_json = json.loads(NBA_json_data.text)
     except JSONDecodeError as e:
-        NBA_json_data = requests.get("https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/" + str(currentNBAYear-1) + "/league/00_full_schedule.json")
+        NBA_json_data = requests.get(f"https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/{currentNBAYear-1}/league/00_full_schedule.json")
         NBA_json = json.loads(NBA_json_data.text)
     nba_games_list = []
 
@@ -603,9 +603,9 @@ def time_until_game(game_start_time):
 
     #Exclude days if the game is happening today
     if days > 0:
-        time_until_game_starts_msg = f'{days}d {hours}h {minutes}m {seconds}s'
+        time_until_game_starts_msg = f"{days}d {hours}h {minutes}m {seconds}s"
     else:
-        time_until_game_starts_msg = f'{hours}h {minutes}m {seconds}s'
+        time_until_game_starts_msg = f"{hours}h {minutes}m {seconds}s"
 
     return time_until_game_starts_msg
 
@@ -705,12 +705,12 @@ def get_team_NFL_matches(team_id):
     nfl_games_list = []
     current_date = datetime.strptime(datetime.now().strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
 
-    NFL_json_data = requests.get("https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/" + str(team_id) + "/schedule")
+    NFL_json_data = requests.get(f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/{str(team_id)}/schedule")
     NFL_json = json.loads(NFL_json_data.text)
 
     #Going over each game
-    for i in range(0, len(NFL_json['events'])):
-        game_start_time = NFL_json['events'][i]['date']
+    for i in range(0, len(NFL_json["events"])):
+        game_start_time = NFL_json["events"][i]["date"]
 
         #Converting game start time to datetime to be compared with the current datetime, first must convert string to datetime then back to string then datetime again to get
         #correct format (ANNOYING).
@@ -718,9 +718,9 @@ def get_team_NFL_matches(team_id):
         game_start_time_dt = datetime.strptime(game_start_time_dt.strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
 
         if game_start_time_dt >= current_date:
-            game_start_time = convert_date(NFL_json['events'][i]['date'])
-            game = NFL_json['events'][i]['name']
-            game = game.split(' at ')
+            game_start_time = convert_date(NFL_json["events"][i]["date"])
+            game = NFL_json["events"][i]["name"]
+            game = game.split(" at ")
             #Visting team ID obtained by using the team name
             visiting_team = list(nfl_teams.keys())[list(nfl_teams.values()).index(game[0])]
             #Home team ID obtained by using the team name
@@ -738,12 +738,13 @@ def get_team_NHL_matches(team_id):
     NHL_json_data = requests.get(f"https://api-web.nhle.com/v1/club-schedule/{team_id}/week/now")
     NHL_json = json.loads(NHL_json_data.text)
 
-    number_of_teams = len(NHL_json['games'])
+    number_of_teams = len(NHL_json["games"])
     for i in range(0, number_of_teams):
-        if (NHL_json['games'][i]['gameState'] == 'FUT'):
-            game_start_time = convert_date(NHL_json['games'][i]['startTimeUTC'])
-            away_team = NHL_json['games'][i]['awayTeam']['abbrev']
-            home_team = NHL_json['games'][i]['homeTeam']['abbrev']
+	#Game happens in the future, can set reminders for it
+        if (NHL_json["games"][i]["gameState"] == "FUT"):
+            game_start_time = convert_date(NHL_json["games"][i]["startTimeUTC"])
+            away_team = NHL_json["games"][i]["awayTeam"]["abbrev"]
+            home_team = NHL_json["games"][i]["homeTeam"]["abbrev"]
             upcoming_match_list.append((game_start_time, away_team, home_team))
 
     return upcoming_match_list
@@ -767,32 +768,32 @@ def get_reminders():
     reminders_with_messages = []
 
     for reminder in reminders:
-        if reminder[4] == 'NBA':
+        if reminder[4] == "NBA":
             away_team = nba_teams[reminder[2]]
             home_team = nba_teams[reminder[3]]
-        elif reminder[4] == 'NFL':
+        elif reminder[4] == "NFL":
             away_team = nfl_teams[reminder[2]]
             home_team = nfl_teams[reminder[3]]
-        elif reminder[4] == 'NHL':
+        elif reminder[4] == "NHL":
             away_team = nhl_teams[reminder[2]]
             home_team = nhl_teams[reminder[3]]
-        elif reminder[4] == 'CS2':
-            #Defaults to 'TBA' if team does not exist in dictionary
-            away_team = cs2_data.teams.get(reminder[2], 'TBA')
-            home_team = cs2_data.teams.get(reminder[3], 'TBA')
+        elif reminder[4] == "CS2":
+            #Defaults to "TBA" if team does not exist in dictionary
+            away_team = cs2_data.teams.get(reminder[2], "TBA")
+            home_team = cs2_data.teams.get(reminder[3], "TBA")
 
         time_before_game = reminder_times[reminder[5]]
         time_before_game = " ".join(time_before_game.split()[2:4])
-        reminder_message = f'{away_team} vs. {home_team} starts in {time_before_game}!'
+        reminder_message = f"{away_team} vs. {home_team} starts in {time_before_game}!"
         reminders_with_messages.append((reminder[0], reminder[1], reminder[2], reminder[3], reminder[4], reminder_message))
 
     return reminders_with_messages
 
 def run_discord_bot():
-    TOKEN = os.environ.get('GamedayBot_TOKEN')
+    TOKEN = os.environ.get("GamedayBot_TOKEN")
     intents = discord.Intents.default()
     intents.message_content = True
-    bot = commands.Bot(command_prefix = '!', intents=intents)
+    bot = commands.Bot(command_prefix = "!", intents=intents)
 
     @bot.command()
     @commands.dm_only()
@@ -834,17 +835,15 @@ def run_discord_bot():
         delete_reminders = []
         delete_users = []
         for reminder in reminders_to_send:
-            #print(reminder)
             #If current time is past the reminder time or equal to it then send message to user!
-
             if datetime.now() >= reminder[1]:
                 user = await bot.fetch_user(reminder[0])
                 bytes_io_obj = BytesIO()
-                user_upcoming_game(reminder[2], reminder[3], reminder[4], reminder[5]).save(bytes_io_obj, 'PNG')
+                user_upcoming_game(reminder[2], reminder[3], reminder[4], reminder[5]).save(bytes_io_obj, "PNG")
                 bytes_io_obj.seek(0)
                 #Added this incase users no longer have access to bot in server or DMs
                 try:
-                    await user.send(file=discord.File(fp=bytes_io_obj, filename='image.png'))
+                    await user.send(file=discord.File(fp=bytes_io_obj, filename="image.png"))
                 except discord.Forbidden as e:
                     print(f"Forbidden error: {e} {user.id}, deleting user")
                     delete_users.append(reminder[0])
@@ -868,7 +867,7 @@ def run_discord_bot():
 
     @bot.event
     async def on_ready():
-        print(f'{bot.user} is now running!')
+        print(f"{bot.user} is now running!")
         try:
             send_reminders.start()
             cs2_data.update_cs2_teams_dict.start()
@@ -881,11 +880,11 @@ def run_discord_bot():
     @bot.tree.command(name="remove_all_reminders", description="Removes all reminders for any or all of the leagues")
     @app_commands.describe(league="league to remove reminders from")
     @app_commands.choices(league = [
-        discord.app_commands.Choice(name = 'NBA', value = 'NBA'),
-        discord.app_commands.Choice(name = 'NFL', value = 'NFL'),
-        discord.app_commands.Choice(name = 'NHL', value = 'NHL'),
-        discord.app_commands.Choice(name = 'CS2', value = 'CS2'),
-        discord.app_commands.Choice(name = 'All Leagues', value = 'ALL')
+        discord.app_commands.Choice(name = "NBA", value = "NBA"),
+        discord.app_commands.Choice(name = "NFL", value = "NFL"),
+        discord.app_commands.Choice(name = "NHL", value = "NHL"),
+        discord.app_commands.Choice(name = "CS2", value = "CS2"),
+        discord.app_commands.Choice(name = "All Leagues", value = "ALL")
     ])
     async def remove_all_reminders(interaction: discord.Interaction, league: discord.app_commands.Choice[str]):
         response = remove_all_reminders_fn(str(interaction.user.id), str(league.value))
@@ -903,9 +902,9 @@ def run_discord_bot():
             nba_games_list = get_team_NBA_matches(nba_team)
             bytes_io_obj = BytesIO()
             if len(nba_games_list) > 0:
-                user_nextgame(nba_games_list, "NBA").save(bytes_io_obj, 'PNG')
+                user_nextgame(nba_games_list, "NBA").save(bytes_io_obj, "PNG")
                 bytes_io_obj.seek(0)
-                await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename='image.png'))
+                await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename="image.png"))
             else:
                 await interaction.response.send_message("No Upcoming Games for the " + team_name)
 
@@ -914,7 +913,7 @@ def run_discord_bot():
     @app_commands.describe(remind_time = "Time at which user will be reminded before selected NBA team game starts")
     async def nba_remindme(interaction: discord.Interaction, nba_team: str, remind_time: int):
         if nba_team in nba_teams:
-            response = insert_or_update_user(str(interaction.user.id), nba_team, remind_time, 'nba')
+            response = insert_or_update_user(str(interaction.user.id), nba_team, remind_time, "nba")
             await interaction.response.send_message(response)
 
     #Slash command for removing reminders for NBA teams
@@ -922,12 +921,12 @@ def run_discord_bot():
     @app_commands.describe(nba_team = "NBA Team that user will get game time reminders for")
     async def nba_remove_reminders(interaction: discord.Interaction, nba_team: str):
         if nba_team in nba_teams:
-            response = remove_reminders(str(interaction.user.id), nba_team, 'nba')
+            response = remove_reminders(str(interaction.user.id), nba_team, "nba")
             await interaction.response.send_message(response)
 
-    @nba_nextgame.autocomplete('nba_team')
-    @nba_remindme.autocomplete('nba_team')
-    @nba_remove_reminders.autocomplete('nba_team')
+    @nba_nextgame.autocomplete("nba_team")
+    @nba_remindme.autocomplete("nba_team")
+    @nba_remove_reminders.autocomplete("nba_team")
     # Only gets first 25 teams (LIMIT)
     async def nba_nextgame_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice[str]]:
         return [
@@ -935,7 +934,7 @@ def run_discord_bot():
             for team_id, nba_team in nba_teams.items() if current.lower() in nba_team.lower()
         ][:25]
     
-    @nba_remindme.autocomplete('remind_time')
+    @nba_remindme.autocomplete("remind_time")
     # Only gets first 25 teams (LIMIT)
     async def nba_remind_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice[str]]:
         return [
@@ -955,18 +954,18 @@ def run_discord_bot():
             nfl_games_list = get_team_NFL_matches(nfl_team)
             bytes_io_obj = BytesIO()
             if len(nfl_games_list) > 0:
-                user_nextgame(nfl_games_list, "NFL").save(bytes_io_obj, 'PNG')
+                user_nextgame(nfl_games_list, "NFL").save(bytes_io_obj, "PNG")
                 bytes_io_obj.seek(0)
-                await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename='image.png'))
+                await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename="image.png"))
             else:
-                await interaction.response.send_message("No Upcoming Games for the " + team_name)
+                await interaction.response.send_message(f"No Upcoming Games for the {team_name}")
 
     @bot.tree.command(name="nfl_remindme", description="Set game time reminders for NFL teams")
     @app_commands.describe(nfl_team = "NFL Team that user will get game time reminders for")
     @app_commands.describe(remind_time = "Time at which user will be reminded before selected NFL team game starts")
     async def nfl_remindme(interaction: discord.Interaction, nfl_team: str, remind_time: int):
         if nfl_team in nfl_teams:
-            response = insert_or_update_user(str(interaction.user.id), nfl_team, remind_time, 'nfl')
+            response = insert_or_update_user(str(interaction.user.id), nfl_team, remind_time, "nfl")
             await interaction.response.send_message(response)
             
     #Slash command for removing reminders for nfl teams
@@ -974,11 +973,11 @@ def run_discord_bot():
     @app_commands.describe(nfl_team = "NFL team that user will get game time reminders for")
     async def nfl_remove_reminders(interaction: discord.Interaction, nfl_team: str):
         if nfl_team in nfl_teams:
-            response = remove_reminders(str(interaction.user.id), nfl_team, 'nfl')
+            response = remove_reminders(str(interaction.user.id), nfl_team, "nfl")
             await interaction.response.send_message(response)
 
-    @nfl_nextgame.autocomplete('nfl_team')
-    @nfl_remindme.autocomplete('nfl_team')
+    @nfl_nextgame.autocomplete("nfl_team")
+    @nfl_remindme.autocomplete("nfl_team")
     @nfl_remove_reminders.autocomplete('nfl_team')
     #Only gets first 25 teams (LIMIT)
     async def nfl_nextgame_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice[str]]:
@@ -987,7 +986,7 @@ def run_discord_bot():
                    for team_id, nfl_team in nfl_teams.items() if current.lower() in nfl_team.lower()
                ][:25]
 
-    @nfl_remindme.autocomplete('remind_time')
+    @nfl_remindme.autocomplete("remind_time")
     # Only gets first 25 teams (LIMIT)
     async def nfl_remind_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice[str]]:
         return [
@@ -1006,18 +1005,18 @@ def run_discord_bot():
             bytes_io_obj = BytesIO()
 
             if len(nhl_games_list) > 0:
-                user_nextgame(nhl_games_list, "NHL").save(bytes_io_obj, 'PNG')
+                user_nextgame(nhl_games_list, "NHL").save(bytes_io_obj, "PNG")
                 bytes_io_obj.seek(0)
-                await interaction.response.send_message(file=discord.File(fp=bytes_io_obj, filename='image.png'))
+                await interaction.response.send_message(file=discord.File(fp=bytes_io_obj, filename="image.png"))
             else:
-                await interaction.response.send_message("No Upcoming Games for the " + team_name)
+                await interaction.response.send_message("No Upcoming Games for the {team_name}")
 
     @bot.tree.command(name="nhl_remindme", description="Set game time reminders for NHL teams")
     @app_commands.describe(nhl_team = "NHL Team that user will get game time reminders for")
     @app_commands.describe(remind_time = "Time at which user will be reminded before selected NHL team game starts")
     async def nhl_remindme(interaction: discord.Interaction, nhl_team: str, remind_time: int):
         if nhl_team in nhl_teams:
-            response = insert_or_update_user(str(interaction.user.id), nhl_team, remind_time, 'nhl')
+            response = insert_or_update_user(str(interaction.user.id), nhl_team, remind_time, "nhl")
             await interaction.response.send_message(response)
             
     #Slash command for removing reminders for nhl teams
@@ -1025,11 +1024,11 @@ def run_discord_bot():
     @app_commands.describe(nhl_team = "NHL team that user will get game time reminders for")
     async def nhl_remove_reminders(interaction: discord.Interaction, nhl_team: str):
         if nhl_team in nhl_teams:
-            response = remove_reminders(str(interaction.user.id), nhl_team, 'nhl')
+            response = remove_reminders(str(interaction.user.id), nhl_team, "nhl")
             await interaction.response.send_message(response)
 
-    @nhl_nextgame.autocomplete('nhl_team')
-    @nhl_remindme.autocomplete('nhl_team')
+    @nhl_nextgame.autocomplete("nhl_team")
+    @nhl_remindme.autocomplete("nhl_team")
     @nhl_remove_reminders.autocomplete('nhl_team')
     # Only gets first 25 teams (LIMIT)
     async def nhl_nextgame_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice[str]]:
@@ -1038,7 +1037,7 @@ def run_discord_bot():
                    for team_id, nhl_team in nhl_teams.items() if current.lower() in nhl_team.lower()
                ][:25]
 
-    @nhl_remindme.autocomplete('remind_time')
+    @nhl_remindme.autocomplete("remind_time")
     # Only gets first 25 teams (LIMIT)
     async def nhl_remind_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[app_commands.Choice[str]]:
         return [
@@ -1059,23 +1058,23 @@ def run_discord_bot():
             if cs2_next_game is not None:
                 fixed_date = convert_date(str(cs2_next_game[0]))
                 cs2_next_game[0] = fixed_date
-                create_cs2_game_graphic(cs2_next_game, "CS2").save(bytes_io_obj, 'PNG')
+                create_cs2_game_graphic(cs2_next_game, "CS2").save(bytes_io_obj, "PNG")
                 bytes_io_obj.seek(0)
-                game_embed = discord.Embed(title=f'{cs2_data.teams[cs2_next_game[1]]} vs. {cs2_data.teams[cs2_next_game[2]]}', url = cs2_next_game[5])
+                game_embed = discord.Embed(title=f"{cs2_data.teams[cs2_next_game[1]]} vs. {cs2_data.teams[cs2_next_game[2]]}", url = cs2_next_game[5])
                 game_embed.set_image(url = "attachment://image.png")
-                game_embed.add_field(name = 'Series Type: ', value = cs2_next_game[3])
-                game_embed.add_field(name = 'Match Environment: ', value = cs2_next_game[4])
+                game_embed.add_field(name = "Series Type: ", value = cs2_next_game[3])
+                game_embed.add_field(name = "Match Environment: ", value = cs2_next_game[4])
 
-                await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename='image.png'), embed = game_embed)
+                await interaction.response.send_message(file = discord.File(fp=bytes_io_obj, filename="image.png"), embed = game_embed)
             else:
-                await interaction.response.send_message("No Upcoming Games for " + team_name)
+                await interaction.response.send_message(f"No Upcoming Games for {team_name}")
 
     @bot.tree.command(name="cs2_remindme", description="Set reminders for CS2 teams")
     @app_commands.describe(cs2_team="CS2 team that user will get game time reminders for")
     @app_commands.describe(remind_time="Time at which user will be reminded before selected CS2 team game starts")
     async def cs2_remindme(interaction: discord.Interaction, cs2_team: str, remind_time: int):
         if cs2_team in cs2_data.teams:
-            response = insert_or_update_user(str(interaction.user.id), cs2_team, remind_time, 'cs2')
+            response = insert_or_update_user(str(interaction.user.id), cs2_team, remind_time, "cs2")
             await interaction.response.send_message(response)
 
     # Slash command for removing reminders for CS2 teams
@@ -1083,12 +1082,12 @@ def run_discord_bot():
     @app_commands.describe(cs2_team="CS2 team that user will remove game time reminders for")
     async def cs2_remove_reminders(interaction: discord.Interaction, cs2_team: str):
         if cs2_team in cs2_data.teams:
-            response = remove_reminders(str(interaction.user.id), cs2_team, 'cs2')
+            response = remove_reminders(str(interaction.user.id), cs2_team, "cs2")
             await interaction.response.send_message(response)
 
-    @cs2_nextgame.autocomplete('cs2_team')
-    @cs2_remindme.autocomplete('cs2_team')
-    @cs2_remove_reminders.autocomplete('cs2_team')
+    @cs2_nextgame.autocomplete("cs2_team")
+    @cs2_remindme.autocomplete("cs2_team")
+    @cs2_remove_reminders.autocomplete("cs2_team")
     #Only gets first 25 teams (LIMIT)
     async def cs2_nextgame_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[
         app_commands.Choice[str]]:
@@ -1097,7 +1096,7 @@ def run_discord_bot():
                    for team_id, cs2_team in cs2_data.teams.items() if current.lower() in cs2_team.lower()
                ][:25]
 
-    @cs2_remindme.autocomplete('remind_time')
+    @cs2_remindme.autocomplete("remind_time")
     # Only gets first 25 teams (LIMIT)
     async def cs2_remind_autocomplete(interaction: discord.Interaction, current: str) -> typing.List[
         app_commands.Choice[str]]:
