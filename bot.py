@@ -212,7 +212,7 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
     #Getting all upcoming games for each league
     league_games = league +"_games"
     if league_games != "cs2_games":
-	upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN {str(user_followed_teams_tuple)} OR home_team IN {str(user_followed_teams_tuple)})"
+	    upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN {str(user_followed_teams_tuple)} OR home_team IN {str(user_followed_teams_tuple)})"
     else:
         upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (team_one IN {str(user_followed_teams_tuple)} OR team_two IN {str(user_followed_teams_tuple)})"
     cur.execute(upcoming_games)
@@ -421,16 +421,34 @@ def remove_reminders(user_id, team_id, league):
 
     #If reminders have been set for this team remove them
     if team_id in id_query_result[teams_query_idx]:
+        #Updating the necessary teams column in users table to remove the team user entered
         updated_reminder_teams_bit_string = id_query_result[teams_query_idx]
         updated_reminder_teams_bit_string = updated_reminder_teams_bit_string.replace(team_id + ",", "")
         update_statement = f"UPDATE users SET {league_teams} = %s WHERE user_id = %s"
         values = (updated_reminder_teams_bit_string, user_id)
         cur.execute(update_statement, values)
         conn.commit()
-        delete_statement = "DELETE FROM reminders WHERE user_id = %s AND home_team = %s OR visiting_team = %s"
-        values = (user_id, team_id, team_id,)
-        cur.execute(delete_statement, values)
+        #Selecting all reminders where the removed team appears in
+        select_statement = "SELECT * FROM reminders WHERE user_id = %s and home_team = %s or visiting_team = %s"
+        select_values = (user_id, team_id, team_id)
+        cur.execute(select_statement, select_values)
+        games_with_removed_team = cur.fetchall()
+
+        #Used to make sure that reminders being deleted do not contain another team that the user follows
+        reminder_teams_list = updated_reminder_teams_bit_string.split(',')
+
+        #Looking at each reminder to make sure neither team is followed by the user, then they are ok to delete the reminder
+        for game in games_with_removed_team:
+            #If either the visting or home team are in the users followed teams this reminder will NOT be deleted
+            if game[2] in reminder_teams_list or game[3] in reminder_teams_list:
+                pass
+            #reminder will be deleted if neither team is followed by the user
+            else:
+                delete_statement = "DELETE FROM reminders WHERE user_id = %s AND visiting_team = %s AND home_team = %s"
+                delete_values = (user_id, game[2], game[3])
+                cur.execute(delete_statement, delete_values)
         conn.commit()
+
         return f"Reminders removed for {msg_team_name}"
     #User has no reminders for the selected team
     elif team_id not in id_query_result[teams_query_idx]:
