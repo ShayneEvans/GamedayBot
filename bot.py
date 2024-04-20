@@ -151,7 +151,7 @@ class cs2Teams:
 
     #Every minute check the database to see if there are new teams and then update the dictionary with those temas
     #so they appear in the autocomplete
-    @tasks.loop(minutes=1440)
+    @tasks.loop(minutes=60)
     async def update_cs2_teams_dict(self):
         self.teams = self.get_cs2_teams_dict()
 
@@ -448,8 +448,11 @@ def remove_all_reminders_fn(user_id, league):
     id_query = "SELECT * FROM users WHERE user_id = %s"
     cur.execute(id_query, (user_id,))
     id_query_result = cur.fetchone()
-    #Valid reminders have been set for this league and should be removed
-    if league == "NBA" and id_query_result[1] is not None:
+
+    if id_query_result is None:
+        return "You are following no teams."
+    # Valid reminders have been set for this league and should be removed
+    if league == 'NBA' and id_query_result[1] is not None:
         update_statement = "UPDATE users SET nba_teams = %s, nba_remind_time = %s WHERE user_id = %s"
         values = (None, None, user_id)
         cur.execute(update_statement, values)
@@ -545,11 +548,10 @@ def get_team_NBA_matches(team_id):
             home_team = NBA_json['lscd'][i]['mscd']['g'][j]['h']['ta']
 
             #If game hasn't been played, append it to list
-            if game_status[-2:] == 'ET' or game_status == "TBD":
+            if game_status[-2:] == 'ET':
                 if home_team == team_id or visiting_team == team_id:
                     game_start_time = game_date + " " + game_status
-                    if game_status != "TBD":
-                        game_start_time = convert_date(game_start_time)
+                    game_start_time = convert_date(game_start_time)
                     
                     #Checking to make sure both are real NBA teams, avoid issue of EU pre season games.
                     if visiting_team in nba_teams and home_team in nba_teams:
@@ -792,7 +794,6 @@ def get_reminders():
 def run_discord_bot():
     TOKEN = os.environ.get("GamedayBot_TOKEN")
     intents = discord.Intents.default()
-    intents.message_content = True
     bot = commands.Bot(command_prefix = "!", intents=intents)
 
     @bot.command()
