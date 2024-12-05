@@ -16,6 +16,30 @@ import os
 from json.decoder import JSONDecodeError
 import pytz
 from typing import Literal, Optional
+import logging
+import sys
+
+####################### LOGGING #######################
+
+logging.basicConfig(filename='/root/output_logs/GamedayBot_python.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+#Redirect stdout to the logger
+class StdoutToLogger:
+    def __init__(self, logger, level=logging.INFO):
+        self.logger = logger
+        self.level = level
+
+    def write(self, message):
+        if message.strip():  # don't log empty lines
+            self.logger.log(self.level, message.strip())
+
+#Create a logger
+logger = logging.getLogger('GamedayBot')
+
+#Redirect stdout to the logger
+sys.stdout = StdoutToLogger(logger)
+
+####################### LOGGING #######################
 
 #Connecting to database
 try:
@@ -103,7 +127,7 @@ nfl_teams = {
 
 nhl_teams = {
     'ANA': 'Anaheim Ducks',
-    'ARI': 'Arizona Coyotes',
+    'UTA': 'Utah Hockey Club',
     'BOS': 'Boston Bruins',
     'BUF': 'Buffalo Sabres',
     'CGY': 'Calgary Flames',
@@ -212,7 +236,7 @@ def set_upcoming_game_reminder_times(league, teams_query_idx, remind_times_query
     #Getting all upcoming games for each league
     league_games = league +"_games"
     if league_games != "cs2_games":
-	    upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN {str(user_followed_teams_tuple)} OR home_team IN {str(user_followed_teams_tuple)})"
+        upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (visiting_team IN {str(user_followed_teams_tuple)} OR home_team IN {str(user_followed_teams_tuple)})"
     else:
         upcoming_games = f"SELECT * FROM {league_games} WHERE start_time <= NOW() + INTERVAL '2 DAY'::INTERVAL AND (team_one IN {str(user_followed_teams_tuple)} OR team_two IN {str(user_followed_teams_tuple)})"
     cur.execute(upcoming_games)
@@ -264,7 +288,7 @@ def update_reminder_time_on_reminders_table(user_id, new_time, league):
         game_start_time = cur.fetchone()
         new_game_remind_time = game_start_time[0] - timedelta(minutes = new_time)
         
-	#if setting reminder that would have already happened, delete record
+    #if setting reminder that would have already happened, delete record
         current_date = datetime.strptime(datetime.now().strftime("%Y-%m-%dT%H:%M"), "%Y-%m-%dT%H:%M")
         if current_date < new_game_remind_time:
             update_statement = "UPDATE reminders SET remind_time = %s, minutes_from_start_time = %s WHERE user_id = %s AND remind_time = %s AND visiting_team = %s AND home_team = %s"
@@ -760,7 +784,7 @@ def get_team_NHL_matches(team_id):
 
     number_of_teams = len(NHL_json["games"])
     for i in range(0, number_of_teams):
-	#Game happens in the future, can set reminders for it
+    #Game happens in the future, can set reminders for it
         if (NHL_json["games"][i]["gameState"] == "FUT"):
             game_start_time = convert_date(NHL_json["games"][i]["startTimeUTC"])
             away_team = NHL_json["games"][i]["awayTeam"]["abbrev"]
@@ -781,31 +805,67 @@ def get_team_CS2_matches(team_id):
     else:
         return None
 
+def test_db_connection(conn):
+    try:
+        #First, check if the connection is already closed
+        if conn.closed != 0:
+            print("Connection is already closed.")
+            return False
+
+        #Check if the connection is valid by running a query
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+        return True
+
+    except psycopg2.Error as e:
+        print(f"Connection test failed: {e}")
+        return False
+
 #Gets all reminders from database that need to be sent to users
-def get_reminders():
-    cur.execute("SELECT * FROM reminders")
-    reminders = cur.fetchall()
+def get_reminders(conn, cur):
     reminders_with_messages = []
+    #If there is a valid database connection
+    if test_db_connection(conn):
+        cur.execute("SELECT * FROM reminders")
+        reminders = cur.fetchall()
 
-    for reminder in reminders:
-        if reminder[4] == "NBA":
-            away_team = nba_teams[reminder[2]]
-            home_team = nba_teams[reminder[3]]
-        elif reminder[4] == "NFL":
-            away_team = nfl_teams[reminder[2]]
-            home_team = nfl_teams[reminder[3]]
-        elif reminder[4] == "NHL":
-            away_team = nhl_teams[reminder[2]]
-            home_team = nhl_teams[reminder[3]]
-        elif reminder[4] == "CS2":
-            #Defaults to "TBA" if team does not exist in dictionary
-            away_team = cs2_data.teams.get(reminder[2], "TBA")
-            home_team = cs2_data.teams.get(reminder[3], "TBA")
+        for reminder in reminders:
+            if reminder[4] == "NBA":
+                away_team = nba_teams[reminder[2]]
+                home_team = nba_teams[reminder[3]]
+            elif reminder[4] == "NFL":
+                away_team = nfl_teams[reminder[2]]
+                home_team = nfl_teams[reminder[3]]
+            elif reminder[4] == "NHL":
+                away_team = nhl_teams[reminder[2]]
+                home_team = nhl_teams[reminder[3]]
+            elif reminder[4] == "CS2":
+                #Defaults to "TBA" if team does not exist in dictionary
+                away_team = cs2_data.teams.get(reminder[2], "TBA")
+                home_team = cs2_data.teams.get(reminder[3], "TBA")
 
-        time_before_game = reminder_times[reminder[5]]
-        time_before_game = " ".join(time_before_game.split()[2:4])
-        reminder_message = f"{away_team} vs. {home_team} starts in {time_before_game}!"
-        reminders_with_messages.append((reminder[0], reminder[1], reminder[2], reminder[3], reminder[4], reminder_message))
+            time_before_game = reminder_times[reminder[5]]
+            time_before_game = " ".join(time_before_game.split()[2:4])
+            reminder_message = f"{away_team} vs. {home_team} starts in {time_before_game}!"
+            reminders_with_messages.append((reminder[0], reminder[1], reminder[2], reminder[3], reminder[4], reminder_message))
+    else:
+        #Attempt to reconnect to database
+        try:
+            print("Attempting reconnect to database")
+            conn = psycopg2.connect(
+            database= os.environ.get('GamedayBot_database'),
+            user= os.environ.get('GamedayBot_user'),
+            password= os.environ.get('GamedayBot_password'),
+            host = os.environ.get('GamedayBot_host'),
+            port = os.environ.get('GamedayBot_port'),
+            keepalives=1,
+            keepalives_idle=1
+            )
+            cur = conn.cursor()
+
+        except psycopg2.Error as e:
+            print("Error connecting to the database:", e)   
+        
 
     return reminders_with_messages
 
@@ -847,10 +907,10 @@ def run_discord_bot():
                 ret += 1
 
         await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
-	
+    
     @tasks.loop(seconds=15)
     async def send_reminders():
-        reminders_to_send = get_reminders()
+        reminders_to_send = get_reminders(conn, cur)
         delete_reminders = []
         delete_users = []
         for reminder in reminders_to_send:
