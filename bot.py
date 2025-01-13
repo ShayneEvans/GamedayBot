@@ -572,9 +572,13 @@ def get_team_NBA_matches(team_id):
     try:
         NBA_json_data = requests.get(f"https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/{currentNBAYear}/league/00_full_schedule.json")
         NBA_json = json.loads(NBA_json_data.text)
+        print("lol")
+        print(NBA_json)
     except JSONDecodeError as e:
         NBA_json_data = requests.get(f"https://data.nba.com/data/10s/v2015/json/mobile_teams/nba/{currentNBAYear-1}/league/00_full_schedule.json")
         NBA_json = json.loads(NBA_json_data.text)
+        print("lol2")
+        print(NBA_json)
     nba_games_list = []
 
     #Getting all team games that have yet to be played with date
@@ -765,10 +769,14 @@ def get_team_NFL_matches(team_id):
             game_start_time = convert_date(NFL_json["events"][i]["date"])
             game = NFL_json["events"][i]["name"]
             game = game.split(" at ")
-            #Visting team ID obtained by using the team name
-            visiting_team = list(nfl_teams.keys())[list(nfl_teams.values()).index(game[0])]
-            #Home team ID obtained by using the team name
-            home_team = list(nfl_teams.keys())[list(nfl_teams.values()).index(game[1])]
+            try:
+                #Visting team ID obtained by using the team name
+                visiting_team = list(nfl_teams.keys())[list(nfl_teams.values()).index(game[0])]
+                #Home team ID obtained by using the team name
+                home_team = list(nfl_teams.keys())[list(nfl_teams.values()).index(game[1])]
+            except:
+                visiting_team = "N/A"
+                home_team = "N/A"
             if visiting_team in nfl_teams and home_team in nfl_teams:
                 nfl_games_list.append((game_start_time, visiting_team, home_team))
 
