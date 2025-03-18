@@ -62,10 +62,10 @@ def get_upcoming_matches():
     url = 'https://www.hltv.org/matches'
     try:
         driver.get(url)
-        all_matches = driver.find_elements(By.CLASS_NAME, "upcomingMatch")
-
-        for match in all_matches:
-            match_url = match.find_element(By.CLASS_NAME, "match.a-reset").get_attribute('href')
+        match_list = driver.find_element(By.CLASS_NAME, "matches-list-wrapper")
+        match_wrappers = match_list.find_elements(By.CLASS_NAME, "match-wrapper")
+        for match in match_wrappers:
+            match_url = match.find_element(By.CSS_SELECTOR, ".match-info.a-reset").get_attribute("href")
 
             no_game = False
             #See if match exists yet, for example could be placeholder for a future match such as Final or semi-final
@@ -73,15 +73,17 @@ def get_upcoming_matches():
             try:
                 #Check to see if team is decided yet (doesn't depend on another match result)
                 try:
-                    team1_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team1 .matchTeamName").text
+                    team1_name = match.find_element(By.CSS_SELECTOR, ".match-team1 .match-teamname").text.strip()
                 except NoSuchElementException:
-                    team1_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team1 .team").text
+                    pass
+                    #team1_name = match.find_element(By.CSS_SELECTOR, ".match-team team2 .match-teamname text-ellipsis").text
 
                 #Check to see if team is decided yet (doesn't depend on another match result)
                 try:
-                    team2_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team2 .matchTeamName").text
+                    team2 = match.find_element(By.CSS_SELECTOR, ".match-team2 .match-teamname").text.strip()
                 except NoSuchElementException:
-                    team2_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team2 .team").text
+                    pass
+                    #team2_name = match.find_element(By.CSS_SELECTOR, ".matchTeam.team2 .team").text
 
             except NoSuchElementException:
                 no_game = True
@@ -92,11 +94,11 @@ def get_upcoming_matches():
                 team1_id = match.get_attribute("team1")
                 team2_id = match.get_attribute("team2")
 
-                #Match type: BO1/BO3/BO5
-                match_length = match.find_element(By.CSS_SELECTOR,".matchMeta").text
+                #Match type: BO1/BO3/BO5 (sometimes 3 map letter abbreviation if BO1 determined map idk)
+                match_length = match.find_element(By.CLASS_NAME,"match-meta").get_attribute("textContent")
 
                 #Getting the starting date and time until the game
-                unix_timestamp_start_date = match.get_attribute("data-zonedgrouping-entry-unix")
+                unix_timestamp_start_date = match.find_element(By.CSS_SELECTOR, ".match-time").get_attribute("data-unix")
                 start_time_dt = datetime.fromtimestamp(int(unix_timestamp_start_date)/1000)
                 start_time_str = start_time_dt.strftime("%m-%d-%Y %H:%M")
                 start_time_converted = convert_date(start_time_str)
@@ -108,8 +110,8 @@ def get_upcoming_matches():
                 else:
                     match_env = "ONLINE"
 
-                #Avoiding adding games where team depends on outcome of another match
-                if team1_id is not None and team2_id is not None:
+                #Making sure that both teams are truthy values (Not None or empty)
+                if team1_id and team2_id:
                     upcoming_games.append((start_time_converted, team1_id, team2_id, match_length.upper(), match_env, match_url))
     
     except Exception as e:
